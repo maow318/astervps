@@ -17,15 +17,15 @@ final class MonitorStore {
   var historyErrorByNodeID: [UUID: String] = [:]
 
   private let mock = MockDataSource()
-  private var clients: [UUID: AgentClient] = [:]
-  private var metaByMachine: [UUID: AgentMeta] = [:]
-  private let historyStore = HistoryStore()
-  private var refreshTask: Task<Void, Never>?
+  var clients: [UUID: AgentClient] = [:]
+  var metaByMachine: [UUID: AgentMeta] = [:]
+  let historyStore = HistoryStore()
+  var refreshTask: Task<Void, Never>?
   private var shouldRefreshHistory = false
-  private var isWindowActive = true
-  private var isPolling = false
-  private var lastHistorySync: [UUID: Date] = [:]
-  private var detailHours: [UUID: Int] = [:]
+  var isWindowActive = true
+  var isPolling = false
+  var lastHistorySync: [UUID: Date] = [:]
+  var detailHours: [UUID: Int] = [:]
 
   init() {
     startRefreshLoop()
@@ -102,7 +102,7 @@ final class MonitorStore {
     alerts = mock.loadAlerts()
   }
 
-  private func refreshDemo() {
+  func refreshDemo() {
     let includeHistory = shouldRefreshHistory
     let refreshed = mock.refresh(nodes: nodes, includeHistory: includeHistory)
     for node in refreshed {
@@ -202,104 +202,6 @@ final class MonitorStore {
       history: historyStore.metricsHistory(for: machine.id, hours: 1))
   }
 
-  // MARK: - Polling
-
-  private func startRefreshLoop() {
-    refreshTask = Task { [weak self] in
-      guard let self else { return }
-      while !Task.isCancelled {
-        let demo = self.isDemoMode
-        let active = self.isWindowActive
-        let seconds: Double = demo ? (active ? 5 : 30) : (active ? 2 : 30)
-        try? await Task.sleep(for: .seconds(seconds))
-        guard !Task.isCancelled else { return }
-        if self.isDemoMode {
-          self.refreshDemo()
-        } else {
-          await self.pollAgents()
-        }
-      }
-    }
-  }
-
-  private func pollAgents() async {
-    guard !isPolling, !clients.isEmpty else { return }
-    isPolling = true
-    defer { isPolling = false }
-
-    await withTaskGroup(of: MachinePollResult.self) { group in
-      for (id, client) in clients {
-        let needsMeta = metaByMachine[id] == nil
-        let needsHistory = shouldSyncHistory(id)
-        let since = historyStore.latestTimestamp(for: id)
-        group.addTask {
-          await Self.poll(
-            id: id, client: client, needsMeta: needsMeta, needsHistory: needsHistory, since: since)
-        }
-      }
-      for await result in group {
-        apply(result)
-      }
-    }
-  }
-
-  private nonisolated static func poll(
-    id: UUID, client: AgentClient, needsMeta: Bool, needsHistory: Bool, since: Int64
-  ) async -> MachinePollResult {
-    do {
-      let metrics = try await client.metrics()
-      let meta = needsMeta ? try? await client.meta() : nil
-      let history = needsHistory ? ((try? await client.history(since: since)) ?? []) : []
-      return MachinePollResult(id: id, outcome: .success(metrics, meta, history))
-    } catch let error as AgentError {
-      return MachinePollResult(id: id, outcome: .agentError(error))
-    } catch {
-      return MachinePollResult(id: id, outcome: .failure(error.localizedDescription))
-    }
-  }
-
-  private func shouldSyncHistory(_ id: UUID) -> Bool {
-    guard let last = lastHistorySync[id] else { return true }
-    return Date.now.timeIntervalSince(last) >= 30
-  }
-
-  private func apply(_ result: MachinePollResult) {
-    guard let index = nodes.firstIndex(where: { $0.id == result.id }) else { return }
-    let id = result.id
-    switch result.outcome {
-    case .success(let metrics, let meta, let history):
-      machineStates[id] = .connected
-      if let meta {
-        metaByMachine[id] = meta
-        nodes[index].info.operatingSystem = meta.os
-        nodes[index].info.region = meta.hostname
-      }
-      nodes[index].metrics = metrics.nodeMetrics
-      nodes[index].info.status = .online
-      if !history.isEmpty {
-        let points = history.map { snapshot in
-          HistoryPoint(
-            t: snapshot.timestamp, cpu: snapshot.metrics.cpuUsage,
-            mem: snapshot.metrics.memory.percentage, down: snapshot.metrics.network.down,
-            up: snapshot.metrics.network.up)
-        }
-        historyStore.append(points, for: id)
-        lastHistorySync[id] = .now
-        nodes[index].history = historyStore.metricsHistory(for: id, hours: detailHours[id] ?? 1)
-      }
-    case .agentError(let error):
-      nodes[index].info.status = .offline
-      switch error {
-      case .unauthorized: machineStates[id] = .unauthorized
-      case .certificateMismatch: machineStates[id] = .certificateMismatch
-      default: machineStates[id] = .failed(error.localizedDescription ?? "")
-      }
-    case .failure(let message):
-      nodes[index].info.status = .offline
-      machineStates[id] = .failed(message)
-    }
-  }
-
   // MARK: - History
 
   func loadHistory(for nodeID: UUID, hours: Int) async {
@@ -341,17 +243,6 @@ final class MonitorStore {
       }
     }
   #endif
-}
-
-private struct MachinePollResult {
-  enum Outcome {
-    case success(AgentMetrics, AgentMeta?, [AgentSnapshot])
-    case agentError(AgentError)
-    case failure(String)
-  }
-
-  let id: UUID
-  let outcome: Outcome
 }
 
 extension NodeMetrics {

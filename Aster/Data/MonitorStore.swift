@@ -243,6 +243,17 @@ final class MonitorStore {
       if defaults.bool(forKey: "asterShowAddSheet") {
         isAddMachinePresented = true
       }
+      if let probeEndpoint = defaults.string(forKey: "asterProbe") {
+        Task {
+          do {
+            let fingerprint = try await AgentClient.probeFingerprint(endpoint: probeEndpoint)
+            print("[aster-debug] probe fingerprint: \(fingerprint)")
+          } catch {
+            print("[aster-debug] probe error: \(error)")
+          }
+          fflush(stdout)
+        }
+      }
     }
   #endif
 }

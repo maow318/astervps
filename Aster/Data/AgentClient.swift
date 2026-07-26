@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 enum AgentError: Error, LocalizedError {
@@ -17,14 +16,13 @@ enum AgentError: Error, LocalizedError {
   }
 }
 
-/// HTTPS client for one aster-agent. Trust is anchored exclusively to the
-/// machine's pinned certificate fingerprint — system CA evaluation is not
-/// used because agents serve self-signed certificates.
+/// Client for one aster-agent. Trust is anchored exclusively to the machine's
+/// pinned certificate fingerprint via AgentTransport's TLS verify block;
+/// system CA evaluation and ATS never participate.
 final class AgentClient {
   private let baseURL: URL
   private let token: String
-  private let delegate: PinningDelegate
-  private let session: URLSession
+  private let fingerprint: String
 
   init(endpoint: String, token: String, fingerprint: String) throws {
     guard let url = URL(string: endpoint), url.scheme == "https" else {
@@ -32,9 +30,7 @@ final class AgentClient {
     }
     baseURL = url
     self.token = token
-    delegate = PinningDelegate(mode: .pinned(fingerprint))
-    session = URLSession(
-      configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
+    self.fingerprint = fingerprint
   }
 
   /// Connects once without credentials purely to observe the server's leaf
@@ -44,16 +40,9 @@ final class AgentClient {
     guard let url = URL(string: endpoint), url.scheme == "https" else {
       throw AgentError.invalidEndpoint
     }
-    let delegate = PinningDelegate(mode: .probe)
-    let session = URLSession(
-      configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
-    defer { session.finishTasksAndInvalidate() }
-    let request = URLRequest(url: url.appendingPathComponent("/v1/meta"), timeoutInterval: 8)
-    _ = try await session.data(for: request)
-    guard let fingerprint = delegate.observedFingerprint else {
-      throw AgentError.invalidEndpoint
-    }
-    return fingerprint
+    let response = try await AgentTransport.get(
+      url: url.appendingPathComponent("/v1/meta"), token: nil, trust: .probe)
+    return response.fingerprint
   }
 
   func meta() async throws -> AgentMeta {
@@ -69,7 +58,7 @@ final class AgentClient {
   }
 
   func invalidate() {
-    session.finishTasksAndInvalidate()
+    // Connections are one-shot; nothing persistent to tear down.
   }
 
   private func get<T: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> T {
@@ -80,90 +69,13 @@ final class AgentClient {
     if !query.isEmpty { components.queryItems = query }
     guard let url = components.url else { throw AgentError.invalidEndpoint }
 
-    var request = URLRequest(url: url, timeoutInterval: 8)
-    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-    let data: Data
-    let response: URLResponse
-    do {
-      (data, response) = try await session.data(for: request)
-    } catch {
-      if delegate.sawMismatch { throw AgentError.certificateMismatch }
-      throw error
-    }
-    guard let http = response as? HTTPURLResponse else { throw AgentError.badResponse(0) }
-    if http.statusCode == 401 { throw AgentError.unauthorized }
-    guard 200..<300 ~= http.statusCode else { throw AgentError.badResponse(http.statusCode) }
+    let response = try await AgentTransport.get(
+      url: url, token: token, trust: .pinned(fingerprint))
+    if response.status == 401 { throw AgentError.unauthorized }
+    guard 200..<300 ~= response.status else { throw AgentError.badResponse(response.status) }
     let decoder = JSONDecoder()
     decoder.keyDecodingStrategy = .convertFromSnakeCase
-    return try decoder.decode(T.self, from: data)
-  }
-}
-
-/// Evaluates the server certificate by SHA-256 fingerprint of its DER bytes.
-/// `.probe` accepts any certificate but records what it saw; `.pinned` only
-/// accepts an exact fingerprint match and never falls back to system trust.
-final class PinningDelegate: NSObject, URLSessionDelegate, @unchecked Sendable {
-  enum Mode {
-    case probe
-    case pinned(String)
-  }
-
-  private let mode: Mode
-  private let lock = NSLock()
-  private var _observedFingerprint: String?
-  private var _sawMismatch = false
-
-  init(mode: Mode) {
-    self.mode = mode
-  }
-
-  var observedFingerprint: String? {
-    lock.lock()
-    defer { lock.unlock() }
-    return _observedFingerprint
-  }
-
-  var sawMismatch: Bool {
-    lock.lock()
-    defer { lock.unlock() }
-    return _sawMismatch
-  }
-
-  func urlSession(
-    _ session: URLSession,
-    didReceive challenge: URLAuthenticationChallenge,
-    completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
-  ) {
-    guard
-      challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-      let trust = challenge.protectionSpace.serverTrust,
-      let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
-      let leaf = chain.first
-    else {
-      completionHandler(.cancelAuthenticationChallenge, nil)
-      return
-    }
-    let der = SecCertificateCopyData(leaf) as Data
-    let fingerprint = SHA256.hash(data: der).map { String(format: "%02x", $0) }.joined()
-
-    lock.lock()
-    _observedFingerprint = fingerprint
-    lock.unlock()
-
-    switch mode {
-    case .probe:
-      completionHandler(.useCredential, URLCredential(trust: trust))
-    case .pinned(let expected):
-      if fingerprint == expected.lowercased() {
-        completionHandler(.useCredential, URLCredential(trust: trust))
-      } else {
-        lock.lock()
-        _sawMismatch = true
-        lock.unlock()
-        completionHandler(.cancelAuthenticationChallenge, nil)
-      }
-    }
+    return try decoder.decode(T.self, from: response.body)
   }
 }
 

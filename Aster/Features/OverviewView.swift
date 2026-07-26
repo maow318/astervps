@@ -91,7 +91,11 @@ struct StatusBar: View {
     ) {
       HStack {
         StatusDot(status: store.connectionState.dotStatus, diameter: 7)
-        Button(action: {}) { Image(systemName: "plus") }.help(L.text("action.add"))
+        Button {
+          store.isAddMachinePresented = true
+        } label: {
+          Image(systemName: "plus")
+        }.help(L.text("action.add"))
       }
     } trailing: {
       Button(action: {}) { Image(systemName: "magnifyingglass") }.help(L.text("action.search"))

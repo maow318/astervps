@@ -34,6 +34,9 @@ struct MainSplitView: View {
       destinationView
     }
     .navigationSplitViewStyle(.balanced)
+    .sheet(isPresented: $store.isAddMachinePresented) {
+      AddMachineSheet().environment(store)
+    }
   }
   @ViewBuilder private var destinationView: some View {
     switch selection ?? .overview {

@@ -80,11 +80,12 @@ struct NodeDetailView: View {
   private func detailHeader(_ node: NodeSnapshot) -> some View {
     HStack(alignment: .top) {
       VStack(alignment: .leading, spacing: 7) {
-        HStack {
+        HStack(spacing: 8) {
           Text(node.info.flag).font(.title2)
           Text(node.info.name).font(AsterTypography.pageTitle)
+          OSBadge(osID: node.info.operatingSystem)
         }
-        Text("\(node.info.region) · \(node.info.operatingSystem)")
+        Text(node.info.region)
           .foregroundStyle(AsterColor.foregroundSecondary)
         HStack { ForEach(node.info.tags, id: \.self) { TagChip(text: $0) } }
       }

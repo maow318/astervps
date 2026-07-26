@@ -30,7 +30,10 @@ struct NodeCard: View {
           .foregroundStyle(AsterColor.foregroundSecondary)
       }
       Spacer()
-      StatusDot(status: node.info.status)
+      HStack(spacing: 6) {
+        OSBadge(osID: node.info.operatingSystem)
+        StatusDot(status: node.info.status)
+      }
     }
   }
 

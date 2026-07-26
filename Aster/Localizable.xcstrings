@@ -1,77 +1,1229 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "accessibility.trend" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Metric trend" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "指标趋势" } } } },
-    "action.add" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Add node" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加节点" } } } },
-    "action.help" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Help" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "帮助" } } } },
-    "action.history" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "History" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "历史记录" } } } },
-    "action.search" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Search" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "搜索" } } } },
-    "alerts.empty.message" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Everything is quiet. New alerts will appear here." } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "一切平静。新的告警会显示在这里。" } } } },
-    "alerts.empty.title" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "No alerts" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "没有告警" } } } },
-    "app.name" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Aster" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Aster" } } } },
-    "chart.cpuMemory" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "CPU & Memory" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "CPU 与内存" } } } },
-    "chart.diskIO" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Disk I/O" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "磁盘 I/O" } } } },
-    "chart.network" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Network" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "网络" } } } },
-    "chart.storage" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Storage & Processes" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "存储与进程" } } } },
-    "history.range" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Range" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "时间范围" } } } },
-    "menu.nodes" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Nodes" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "节点" } } } },
-    "menu.open" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Open Aster" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开 Aster" } } } },
-    "metric.connections" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "connections" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接数" } } } },
-    "metric.cpu" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "CPU" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "CPU" } } } },
-    "metric.disk" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Disk" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "磁盘" } } } },
-    "metric.download" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Download" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下行" } } } },
-    "metric.memory" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Memory" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "内存" } } } },
-    "metric.processes" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "processes" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "进程数" } } } },
-    "metric.read" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Read" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "读取" } } } },
-    "metric.swap" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Swap" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "交换" } } } },
-    "metric.upload" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Upload" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "上行" } } } },
-    "metric.write" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Write" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "写入" } } } },
-    "node.missing.message" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "This node is no longer available." } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "此节点已不可用。" } } } },
-    "node.missing.title" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Node unavailable" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "节点不可用" } } } },
-    "overview.availability" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Availability" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "在线率" } } } },
-    "overview.load" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Average Load" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "平均负载" } } } },
-    "overview.nodes" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Total Nodes" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "节点总数" } } } },
-    "overview.title" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Overview" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "概览" } } } },
-    "overview.traffic" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Total Traffic" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "总流量" } } } },
-    "range.day" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "24h" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "24小时" } } } },
-    "range.hour" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "1h" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "1小时" } } } },
-    "range.sixHours" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "6h" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "6小时" } } } },
-    "range.week" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "7d" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "7天" } } } },
-    "search.nodes" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Search nodes" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "搜索节点" } } } },
-    "settings.about" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "About" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "关于" } } } },
-    "settings.aboutText" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "A native monitor for your servers." } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "一款原生的服务器监控客户端。" } } } },
-    "settings.appearance" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Appearance" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "外观" } } } },
-    "settings.connection" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Server Connection" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "服务器连接" } } } },
-    "settings.connectionHint" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connection setup will be available in a future release." } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接设置将在后续版本中启用。" } } } },
-    "settings.dark" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Dark" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "深色" } } } },
-    "settings.endpoint" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Endpoint URL" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "服务地址" } } } },
-    "settings.general" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "General" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "通用" } } } },
-    "settings.launch" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Launch at login" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "登录时启动" } } } },
-    "settings.light" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Light" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "浅色" } } } },
-    "settings.offline" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Show offline nodes" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "显示离线节点" } } } },
-    "settings.system" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "System" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "跟随系统" } } } },
-    "settings.theme" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Theme" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "主题" } } } },
-    "settings.title" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置" } } } },
-    "settings.token" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Access token" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "访问令牌" } } } },
-    "sidebar.alerts" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Alerts" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "告警" } } } },
-    "sidebar.groups" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Groups" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "分组" } } } },
-    "sidebar.nodes" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "All Nodes" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "全部节点" } } } },
-    "sidebar.overview" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Overview" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "概览" } } } },
-    "sidebar.settings" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置" } } } },
-    "status.offline" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Offline" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "离线" } } } },
-    "status.online" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Online" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "在线" } } } },
-    "status.summary" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld online · %lld offline" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%lld 台在线 · %lld 台离线" } } } },
-    "status.warning" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Warning" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "警告" } } } },
-    "settings.demo" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Demo mode" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "演示模式" } } } },
-    "settings.test" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Test connection" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "测试连接" } } } },
-    "settings.connect" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connect" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接" } } } },
-    "settings.testSuccess" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connection succeeded." } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接成功。" } } } },
-    "settings.testFailed" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connection failed." } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接失败。" } } } },
-    "connection.unconfigured" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Not configured" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未配置" } } } },
-    "connection.connecting" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connecting" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接中" } } } },
-    "connection.connected" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connected" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已连接" } } } },
-    "connection.reconnecting" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Reconnecting" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重连中" } } } },
-    "connection.failed" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connection failed" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接失败" } } } }
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "accessibility.trend" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metric trend"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "指标趋势"
+          }
+        }
+      }
+    },
+    "action.add" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add node"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加节点"
+          }
+        }
+      }
+    },
+    "action.help" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Help"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帮助"
+          }
+        }
+      }
+    },
+    "action.history" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史记录"
+          }
+        }
+      }
+    },
+    "action.search" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索"
+          }
+        }
+      }
+    },
+    "alerts.empty.message" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everything is quiet. New alerts will appear here."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一切平静。新的告警会显示在这里。"
+          }
+        }
+      }
+    },
+    "alerts.empty.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No alerts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有告警"
+          }
+        }
+      }
+    },
+    "app.name" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aster"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aster"
+          }
+        }
+      }
+    },
+    "chart.cpuMemory" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU & Memory"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU 与内存"
+          }
+        }
+      }
+    },
+    "chart.diskIO" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disk I/O"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "磁盘 I/O"
+          }
+        }
+      }
+    },
+    "chart.network" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络"
+          }
+        }
+      }
+    },
+    "chart.storage" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Storage & Processes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存储与进程"
+          }
+        }
+      }
+    },
+    "connection.connected" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已连接"
+          }
+        }
+      }
+    },
+    "connection.connecting" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接中"
+          }
+        }
+      }
+    },
+    "connection.failed" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection failed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接失败"
+          }
+        }
+      }
+    },
+    "connection.reconnecting" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnecting"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重连中"
+          }
+        }
+      }
+    },
+    "connection.unconfigured" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not configured"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未配置"
+          }
+        }
+      }
+    },
+    "history.range" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Range"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时间范围"
+          }
+        }
+      }
+    },
+    "menu.nodes" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nodes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "节点"
+          }
+        }
+      }
+    },
+    "menu.open" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Aster"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 Aster"
+          }
+        }
+      }
+    },
+    "metric.connections" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "connections"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接数"
+          }
+        }
+      }
+    },
+    "metric.cpu" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CPU"
+          }
+        }
+      }
+    },
+    "metric.disk" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disk"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "磁盘"
+          }
+        }
+      }
+    },
+    "metric.download" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "下行"
+          }
+        }
+      }
+    },
+    "metric.memory" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内存"
+          }
+        }
+      }
+    },
+    "metric.processes" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "processes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "进程数"
+          }
+        }
+      }
+    },
+    "metric.read" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读取"
+          }
+        }
+      }
+    },
+    "metric.swap" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swap"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "交换"
+          }
+        }
+      }
+    },
+    "metric.upload" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Upload"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上行"
+          }
+        }
+      }
+    },
+    "metric.write" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Write"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "写入"
+          }
+        }
+      }
+    },
+    "node.missing.message" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This node is no longer available."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此节点已不可用。"
+          }
+        }
+      }
+    },
+    "node.missing.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Node unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "节点不可用"
+          }
+        }
+      }
+    },
+    "overview.availability" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Availability"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在线率"
+          }
+        }
+      }
+    },
+    "overview.load" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Average Load"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平均负载"
+          }
+        }
+      }
+    },
+    "overview.nodes" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total Nodes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "节点总数"
+          }
+        }
+      }
+    },
+    "overview.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overview"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "概览"
+          }
+        }
+      }
+    },
+    "overview.traffic" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total Traffic"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "总流量"
+          }
+        }
+      }
+    },
+    "range.day" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24h"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24小时"
+          }
+        }
+      }
+    },
+    "range.hour" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1h"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1小时"
+          }
+        }
+      }
+    },
+    "range.sixHours" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6h"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "6小时"
+          }
+        }
+      }
+    },
+    "range.week" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "7天"
+          }
+        }
+      }
+    },
+    "search.nodes" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search nodes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜索节点"
+          }
+        }
+      }
+    },
+    "settings.about" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关于"
+          }
+        }
+      }
+    },
+    "settings.aboutText" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A native monitor for your servers."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一款原生的服务器监控客户端。"
+          }
+        }
+      }
+    },
+    "settings.appearance" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appearance"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "外观"
+          }
+        }
+      }
+    },
+    "settings.connect" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接"
+          }
+        }
+      }
+    },
+    "settings.connection" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server Connection"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务器连接"
+          }
+        }
+      }
+    },
+    "settings.connectionHint" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection setup will be available in a future release."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接设置将在后续版本中启用。"
+          }
+        }
+      }
+    },
+    "settings.dark" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dark"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深色"
+          }
+        }
+      }
+    },
+    "settings.demo" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demo mode"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "演示模式"
+          }
+        }
+      }
+    },
+    "settings.endpoint" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Endpoint URL"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务地址"
+          }
+        }
+      }
+    },
+    "settings.general" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通用"
+          }
+        }
+      }
+    },
+    "settings.launch" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Launch at login"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录时启动"
+          }
+        }
+      }
+    },
+    "settings.light" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅色"
+          }
+        }
+      }
+    },
+    "settings.offline" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show offline nodes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示离线节点"
+          }
+        }
+      }
+    },
+    "settings.system" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "跟随系统"
+          }
+        }
+      }
+    },
+    "settings.test" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Test connection"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "测试连接"
+          }
+        }
+      }
+    },
+    "settings.testFailed" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection failed."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接失败。"
+          }
+        }
+      }
+    },
+    "settings.testSuccess" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection succeeded."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "连接成功。"
+          }
+        }
+      }
+    },
+    "settings.theme" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Theme"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主题"
+          }
+        }
+      }
+    },
+    "settings.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
+          }
+        }
+      }
+    },
+    "settings.token" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access token"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "访问令牌"
+          }
+        }
+      }
+    },
+    "sidebar.alerts" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alerts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "告警"
+          }
+        }
+      }
+    },
+    "sidebar.groups" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groups"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分组"
+          }
+        }
+      }
+    },
+    "sidebar.nodes" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Nodes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部节点"
+          }
+        }
+      }
+    },
+    "sidebar.overview" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overview"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "概览"
+          }
+        }
+      }
+    },
+    "sidebar.settings" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
+          }
+        }
+      }
+    },
+    "status.offline" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "离线"
+          }
+        }
+      }
+    },
+    "status.online" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在线"
+          }
+        }
+      }
+    },
+    "status.summary" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld online · %lld offline"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 台在线 · %lld 台离线"
+          }
+        }
+      }
+    },
+    "status.warning" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warning"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "警告"
+          }
+        }
+      }
+    },
+    "time" : {
+
+    },
+    "value" : {
+
+    }
   },
   "version" : "1.0"
 }

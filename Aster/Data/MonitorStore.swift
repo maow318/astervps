@@ -8,7 +8,7 @@ final class MonitorStore {
     var groups: [NodeGroup]
     var alerts: [AlertItem]
 
-    private let dataSource: any MonitorDataSource
+    private var dataSource: any MonitorDataSource
     private var refreshTask: Task<Void, Never>?
     private var shouldRefreshHistory = false
     private var isWindowActive = true
@@ -31,6 +31,70 @@ final class MonitorStore {
 
     func node(id: UUID) -> NodeSnapshot? {
         nodes.first { $0.id == id }
+    }
+
+    var connectionState: ConnectionState = .unconfigured
+
+    var isDemoMode: Bool = true
+
+    func restoreSavedConnectionIfNeeded() async {
+        isDemoMode = ConnectionSettings.isDemoMode
+        guard !isDemoMode, !ConnectionSettings.endpoint.isEmpty else { return }
+        await connect(endpoint: ConnectionSettings.endpoint, token: KeychainStore.readToken())
+    }
+
+    func setDemoMode(_ enabled: Bool) {
+        ConnectionSettings.isDemoMode = enabled
+        isDemoMode = enabled
+        if enabled {
+            (dataSource as? KomariDataSource)?.stopLiveUpdates()
+            dataSource = MockDataSource()
+            nodes = dataSource.loadNodes()
+            groups = dataSource.loadGroups()
+            alerts = dataSource.loadAlerts()
+            connectionState = .unconfigured
+        }
+    }
+
+    func connect(endpoint: String, token: String?) async {
+        connectionState = .connecting
+        do {
+            let source = try KomariDataSource(endpoint: endpoint, token: token)
+            source.onStateChange = { [weak self] state in self?.connectionState = state }
+            source.onMetrics = { [weak self] snapshots in self?.applyRealtimeSnapshots(snapshots) }
+            let dashboard = try await source.loadDashboard()
+            dataSource = source
+            nodes = dashboard.nodes
+            groups = dashboard.groups
+            alerts = dashboard.alerts
+            isDemoMode = false
+            ConnectionSettings.endpoint = endpoint
+            ConnectionSettings.isDemoMode = false
+            connectionState = .connected
+            source.startLiveUpdates()
+        } catch {
+            connectionState = .failed(error.localizedDescription)
+        }
+    }
+
+    func testConnection(endpoint: String, token: String?) async -> Result<Void, Error> {
+        do {
+            let source = try KomariDataSource(endpoint: endpoint, token: token)
+            try await source.testConnection()
+            return .success(())
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    func loadHistory(for nodeID: UUID, hours: Int) async {
+        guard let source = dataSource as? KomariDataSource,
+              let index = nodes.firstIndex(where: { $0.id == nodeID }) else { return }
+        do {
+            nodes[index].history = try await source.loadHistory(for: nodes[index].info, hours: hours)
+        } catch {
+            connectionState = .failed(error.localizedDescription)
+        }
     }
 
     var onlineCount: Int {
@@ -56,6 +120,7 @@ final class MonitorStore {
     }
 
     private func refreshMetrics() {
+        guard isDemoMode else { return }
         let refreshedNodes = dataSource.refresh(nodes: nodes, includeHistory: shouldRefreshHistory)
         shouldRefreshHistory.toggle()
 
@@ -67,6 +132,14 @@ final class MonitorStore {
             if shouldRefreshHistory {
                 nodes[index].history = refreshedNode.history
             }
+        }
+    }
+
+    private func applyRealtimeSnapshots(_ snapshots: [NodeSnapshot]) {
+        for snapshot in snapshots {
+            guard let index = nodes.firstIndex(where: { $0.info.serverID == snapshot.info.serverID }) else { continue }
+            nodes[index].metrics = snapshot.metrics
+            nodes[index].info.status = snapshot.info.status
         }
     }
 }

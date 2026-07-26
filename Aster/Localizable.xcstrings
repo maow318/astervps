@@ -61,7 +61,17 @@
     "status.offline" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Offline" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "离线" } } } },
     "status.online" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Online" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "在线" } } } },
     "status.summary" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld online · %lld offline" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%lld 台在线 · %lld 台离线" } } } },
-    "status.warning" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Warning" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "警告" } } } }
+    "status.warning" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Warning" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "警告" } } } },
+    "settings.demo" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Demo mode" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "演示模式" } } } },
+    "settings.test" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Test connection" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "测试连接" } } } },
+    "settings.connect" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connect" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接" } } } },
+    "settings.testSuccess" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connection succeeded." } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接成功。" } } } },
+    "settings.testFailed" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connection failed." } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接失败。" } } } },
+    "connection.unconfigured" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Not configured" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未配置" } } } },
+    "connection.connecting" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connecting" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接中" } } } },
+    "connection.connected" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connected" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已连接" } } } },
+    "connection.reconnecting" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Reconnecting" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重连中" } } } },
+    "connection.failed" : { "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Connection failed" } }, "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "连接失败" } } } }
   },
   "version" : "1.0"
 }

@@ -4,7 +4,7 @@ struct OverviewView: View {
     @Environment(MonitorStore.self) private var store
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) { ScrollView { VStack(alignment: .leading, spacing: AsterSpacing.lg) { HeaderStatistics(); NodeGrid(nodes: store.nodes) }.padding(AsterSpacing.lg) }; StatusBar() }
+            VStack(spacing: 0) { ScrollView { VStack(alignment: .leading, spacing: AsterSpacing.lg) { HeaderStatistics(); if store.nodes.isEmpty && !store.isDemoMode { EmptyStateView(symbol: "network", title: L.text("connection.unconfigured"), message: L.text("settings.connectionHint")) } else { NodeGrid(nodes: store.nodes) } }.padding(AsterSpacing.lg) }; StatusBar() }
             .background(AsterColor.background1.opacity(0.65))
             .navigationTitle(L.text("overview.title"))
             .navigationDestination(for: UUID.self) { id in if let node = store.node(id: id) { NodeDetailView(nodeID: node.id) } }
@@ -26,7 +26,7 @@ struct NodeGrid: View {
 
 struct StatusBar: View {
     @Environment(MonitorStore.self) private var store
-    var body: some View { BottomStatusBar(summary: String(format: L.text("status.summary"), store.onlineCount, store.offlineCount)) { Button(action: {}) { Image(systemName: "plus") }.help(L.text("action.add")) } trailing: { Button(action: {}) { Image(systemName: "magnifyingglass") }.help(L.text("action.search")); Button(action: {}) { Image(systemName: "clock.arrow.circlepath") }.help(L.text("action.history")); Button(action: {}) { Image(systemName: "questionmark.circle") }.help(L.text("action.help")) } }
+    var body: some View { BottomStatusBar(summary: String(format: L.text("status.summary"), store.onlineCount, store.offlineCount)) { HStack { StatusDot(status: store.connectionState.dotStatus, diameter: 7); Button(action: {}) { Image(systemName: "plus") }.help(L.text("action.add")) } } trailing: { Button(action: {}) { Image(systemName: "magnifyingglass") }.help(L.text("action.search")); Button(action: {}) { Image(systemName: "clock.arrow.circlepath") }.help(L.text("action.history")); Button(action: {}) { Image(systemName: "questionmark.circle") }.help(L.text("action.help")) } }
 }
 
 #Preview { OverviewView().environment(MonitorStore()).frame(width: 1100, height: 750) }

@@ -76,12 +76,21 @@ if [ "$VERSION" = "latest" ]; then
 else
   URL="https://github.com/$REPO/releases/download/$VERSION/aster-agent-linux-$ARCH"
 fi
-[ -z "$GHPROXY" ] || URL="$GHPROXY/$URL"
+# Until a GitHub release with assets exists, binaries are served from the
+# repository's `dist` branch; the release URL is preferred once it works.
+FALLBACK_URL="https://raw.githubusercontent.com/$REPO/dist/aster-agent-linux-$ARCH"
+if [ -n "$GHPROXY" ]; then
+  URL="$GHPROXY/$URL"
+  FALLBACK_URL="$GHPROXY/$FALLBACK_URL"
+fi
 
 stop_previous
 
 log "downloading $URL"
-curl -fL -o "$BIN.tmp" "$URL" || fail "download failed"
+if ! curl -fL -o "$BIN.tmp" "$URL"; then
+  log "release download unavailable, falling back to $FALLBACK_URL"
+  curl -fL -o "$BIN.tmp" "$FALLBACK_URL" || fail "download failed"
+fi
 chmod 755 "$BIN.tmp"
 mv "$BIN.tmp" "$BIN"
 

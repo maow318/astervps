@@ -71,6 +71,7 @@ extension MonitorStore {
         // State transitions go to stdout so headless E2E runs can assert on them.
         if machineStates[id] != previousState {
           print("[aster-debug] machine \(id) state -> \(machineStates[id].map(String.init(describing:)) ?? "nil")")
+          fflush(stdout)
         }
       #endif
     }

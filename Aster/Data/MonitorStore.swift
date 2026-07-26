@@ -223,22 +223,24 @@ final class MonitorStore {
   }
 
   #if DEBUG
-    /// Test hooks: `--seed-machine <endpoint> <token> <fingerprint>` registers
-    /// a machine bypassing the UI; `--show-add-sheet` opens the add flow.
+    /// Test hooks, passed AppKit-style (`-asterSeedEndpoint x -asterSeedToken y
+    /// -asterSeedFingerprint z -asterShowAddSheet YES`) so they land in the
+    /// NSArgumentDomain instead of being mistaken for documents to open —
+    /// bare URL-like positional arguments stall window registration.
     private func applyDebugLaunchArguments() {
-      let arguments = ProcessInfo.processInfo.arguments
-      if let index = arguments.firstIndex(of: "--seed-machine"), arguments.count > index + 3 {
-        let endpoint = arguments[index + 1]
+      let defaults = UserDefaults.standard
+      if let endpoint = defaults.string(forKey: "asterSeedEndpoint"),
+        let token = defaults.string(forKey: "asterSeedToken"),
+        let fingerprint = defaults.string(forKey: "asterSeedFingerprint")
+      {
         for machine in machines where machine.endpoint == endpoint {
           removeMachine(machine.id)
         }
         MachineStore.isDemoMode = false
         isDemoMode = false
-        addMachine(
-          name: "seed", endpoint: endpoint, token: arguments[index + 2],
-          fingerprint: arguments[index + 3])
+        addMachine(name: "seed", endpoint: endpoint, token: token, fingerprint: fingerprint)
       }
-      if arguments.contains("--show-add-sheet") {
+      if defaults.bool(forKey: "asterShowAddSheet") {
         isAddMachinePresented = true
       }
     }

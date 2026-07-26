@@ -47,7 +47,7 @@ final class MonitorStore {
     ConnectionSettings.isDemoMode = enabled
     isDemoMode = enabled
     if enabled {
-      (dataSource as? KomariDataSource)?.stopLiveUpdates()
+      (dataSource as? AsterAgentDataSource)?.stopLiveUpdates()
       dataSource = MockDataSource()
       nodes = dataSource.loadNodes()
       groups = dataSource.loadGroups()
@@ -59,10 +59,7 @@ final class MonitorStore {
   func connect(endpoint: String, token: String?) async {
     connectionState = .connecting
     do {
-      let source = try KomariDataSource(endpoint: endpoint, token: token)
-      source.onStateChange = { [weak self] state in self?.connectionState = state }
-      source.onMetrics = { [weak self] snapshots in self?.applyRealtimeSnapshots(snapshots) }
-      source.pollInterval = { [weak self] in self?.isWindowActive == true ? 2 : 30 }
+      let source = try AsterAgentDataSource(endpoint: endpoint, token: token ?? "")
       let dashboard = try await source.loadDashboard()
       dataSource = source
       nodes = dashboard.nodes
@@ -80,7 +77,7 @@ final class MonitorStore {
 
   func testConnection(endpoint: String, token: String?) async -> Result<Void, Error> {
     do {
-      let source = try KomariDataSource(endpoint: endpoint, token: token)
+      let source = try AsterAgentDataSource(endpoint: endpoint, token: token ?? "")
       try await source.testConnection()
       return .success(())
     } catch {
@@ -94,7 +91,7 @@ final class MonitorStore {
       nodes[index].history = source.history(for: nodes[index], hours: hours)
       return
     }
-    guard let source = dataSource as? KomariDataSource else { return }
+    guard let source = dataSource as? AsterAgentDataSource else { return }
     do {
       nodes[index].history = try await source.loadHistory(for: nodes[index].info, hours: hours)
     } catch {

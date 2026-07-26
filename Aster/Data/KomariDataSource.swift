@@ -12,6 +12,7 @@ final class KomariDataSource: MonitorDataSource {
   private var receiveTask: Task<Void, Never>?
   private var reconnectTask: Task<Void, Never>?
   private var reconnectAttempt = 0
+  private var isStopped = false
   private var latestNodes: [String: NodeSnapshot] = [:]
   var onStateChange: (@MainActor (ConnectionState) -> Void)?
   var onMetrics: (@MainActor ([NodeSnapshot]) -> Void)?
@@ -57,11 +58,14 @@ final class KomariDataSource: MonitorDataSource {
   }
 
   func startLiveUpdates() {
+    isStopped = false
     stopLiveUpdates()
+    isStopped = false
     openSocket()
   }
 
   func stopLiveUpdates() {
+    isStopped = true
     receiveTask?.cancel()
     reconnectTask?.cancel()
     socket?.cancel(with: .goingAway, reason: nil)
@@ -69,6 +73,7 @@ final class KomariDataSource: MonitorDataSource {
   }
 
   private func openSocket() {
+    guard !isStopped else { return }
     onStateChange?(.connecting)
     guard
       var components = URLComponents(
@@ -83,6 +88,7 @@ final class KomariDataSource: MonitorDataSource {
     task.send(.string("get")) { [weak self] error in
       guard let self else { return }
       Task { @MainActor in
+        guard !self.isStopped else { return }
         if error == nil {
           self.reconnectAttempt = 0
           self.onStateChange?(.connected)
@@ -109,6 +115,7 @@ final class KomariDataSource: MonitorDataSource {
             continue
           }
         } catch {
+          guard !Task.isCancelled, !self.isStopped else { return }
           self.scheduleReconnect()
           return
         }
@@ -132,13 +139,14 @@ final class KomariDataSource: MonitorDataSource {
   }
 
   private func scheduleReconnect() {
+    guard !isStopped else { return }
     reconnectAttempt += 1
     onStateChange?(.reconnecting(attempt: reconnectAttempt))
     let delay = min(pow(2, Double(reconnectAttempt)), 60)
     reconnectTask?.cancel()
     reconnectTask = Task { [weak self] in
       try? await Task.sleep(for: .seconds(delay))
-      guard !Task.isCancelled else { return }
+      guard !Task.isCancelled, self?.isStopped == false else { return }
       self?.openSocket()
     }
   }

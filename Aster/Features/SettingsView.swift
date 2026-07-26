@@ -105,8 +105,12 @@ struct SettingsView: View {
     Task {
       let result = await store.testConnection(endpoint: endpoint, token: token)
       isTesting = false
-      testMessage =
-        result.isSuccess ? L.text("settings.testSuccess") : L.text("settings.testFailed")
+      switch result {
+      case .success:
+        testMessage = L.text("settings.testSuccess")
+      case .failure(let error):
+        testMessage = "\(L.text("settings.testFailed")) \(error.localizedDescription)"
+      }
     }
   }
 

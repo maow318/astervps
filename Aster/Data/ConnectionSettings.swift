@@ -32,6 +32,10 @@ enum KeychainStore {
   }
 
   static func saveToken(_ token: String) throws {
+    guard !token.isEmpty else {
+      deleteToken()
+      return
+    }
     let data = Data(token.utf8)
     let query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
@@ -43,6 +47,15 @@ enum KeychainStore {
     guard SecItemAdd(item as CFDictionary, nil) == errSecSuccess else {
       throw KeychainError.saveFailed
     }
+
+  }
+
+  static func deleteToken() {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrAccount as String: ConnectionSettings.tokenAccount,
+    ]
+    SecItemDelete(query as CFDictionary)
   }
 
   enum KeychainError: Error { case saveFailed }

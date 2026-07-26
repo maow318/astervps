@@ -73,11 +73,17 @@ import Foundation
       return copy
     }
   }
-  private func history(around value: Double) -> MetricsHistory {
+
+  func history(for node: NodeSnapshot, hours: Int) -> MetricsHistory {
+    history(around: node.metrics.cpuUsage, hours: hours)
+  }
+  private func history(around value: Double, hours: Int = 2) -> MetricsHistory {
     func series(_ base: Double) -> [MetricSample] {
-      (0..<28).map { offset in
+      let count = hours <= 6 ? 36 : 60
+      let interval = Double(hours * 3_600) / Double(count - 1)
+      return (0..<count).map { offset in
         MetricSample(
-          id: UUID(), date: .now.addingTimeInterval(Double(offset - 27) * 300),
+          id: UUID(), date: .now.addingTimeInterval(Double(offset - count + 1) * interval),
           value: max(0, base + Double.random(in: -9...9)))
       }
     }

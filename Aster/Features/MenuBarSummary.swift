@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MenuBarSummary: View {
   @Environment(MonitorStore.self) private var store
+  @Environment(\.openWindow) private var openWindow
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       Text(L.text("menu.nodes")).font(.headline).padding(.horizontal, 8).padding(.top, 6)
@@ -16,8 +17,11 @@ struct MenuBarSummary: View {
         }.padding(.horizontal, 8)
       }
       Divider()
-      Button(L.text("menu.open")) { NSApplication.shared.activate(ignoringOtherApps: true) }
-        .keyboardShortcut("o")
+      Button(L.text("menu.open")) {
+        openWindow(id: "main-window")
+        NSApplication.shared.activate(ignoringOtherApps: true)
+      }
+      .keyboardShortcut("o")
     }.frame(width: 260).padding(.bottom, 6)
   }
 }

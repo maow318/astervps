@@ -12,7 +12,7 @@ struct AsterApp: App {
   @State private var store = MonitorStore()
   @Environment(\.scenePhase) private var scenePhase
   var body: some Scene {
-    WindowGroup {
+    WindowGroup(id: "main-window") {
       ContentView()
         .environment(store)
         .frame(minWidth: 900, minHeight: 600)

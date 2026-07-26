@@ -55,6 +55,22 @@ struct NodeDetailView: View {
         ToolbarItem { StatusDot(status: node.info.status) }
       }
       .task(id: range) { await store.loadHistory(for: nodeID, hours: range.hours) }
+      .overlay(alignment: .bottom) {
+        if let message = store.historyError(for: nodeID) {
+          HStack {
+            Text(message)
+              .font(AsterTypography.caption)
+              .lineLimit(1)
+            Button(L.text("settings.test")) {
+              store.clearHistoryError(for: nodeID)
+              Task { await store.loadHistory(for: nodeID, hours: range.hours) }
+            }
+          }
+          .padding(AsterSpacing.sm)
+          .background(.thinMaterial, in: Capsule())
+          .padding()
+        }
+      }
     } else {
       EmptyStateView(
         symbol: "server.rack", title: L.text("node.missing.title"),

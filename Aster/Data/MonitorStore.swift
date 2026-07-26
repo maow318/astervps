@@ -88,15 +88,24 @@ final class MonitorStore {
   }
 
   func loadHistory(for nodeID: UUID, hours: Int) async {
-    guard let source = dataSource as? KomariDataSource,
-      let index = nodes.firstIndex(where: { $0.id == nodeID })
-    else { return }
+    guard let index = nodes.firstIndex(where: { $0.id == nodeID }) else { return }
+    if let source = dataSource as? MockDataSource {
+      nodes[index].history = source.history(for: nodes[index], hours: hours)
+      return
+    }
+    guard let source = dataSource as? KomariDataSource else { return }
     do {
       nodes[index].history = try await source.loadHistory(for: nodes[index].info, hours: hours)
     } catch {
-      connectionState = .failed(error.localizedDescription)
+      historyErrorByNodeID[nodeID] = error.localizedDescription
     }
   }
+
+  var historyErrorByNodeID: [UUID: String] = [:]
+
+  func historyError(for nodeID: UUID) -> String? { historyErrorByNodeID[nodeID] }
+
+  func clearHistoryError(for nodeID: UUID) { historyErrorByNodeID[nodeID] = nil }
 
   var onlineCount: Int {
     nodes.filter { $0.info.status == .online }.count
@@ -111,7 +120,7 @@ final class MonitorStore {
       guard let self else { return }
 
       while !Task.isCancelled {
-        let interval: UInt64 = self.isWindowActive ? 2_000_000_000 : 30_000_000_000
+        let interval: UInt64 = self.isWindowActive ? 5_000_000_000 : 30_000_000_000
         try? await Task.sleep(nanoseconds: interval)
 
         guard !Task.isCancelled else { return }
@@ -122,18 +131,20 @@ final class MonitorStore {
 
   private func refreshMetrics() {
     guard isDemoMode else { return }
-    let refreshedNodes = dataSource.refresh(nodes: nodes, includeHistory: shouldRefreshHistory)
-    shouldRefreshHistory.toggle()
+    let includeHistory = shouldRefreshHistory
+    let refreshedNodes = dataSource.refresh(nodes: nodes, includeHistory: includeHistory)
 
     for refreshedNode in refreshedNodes {
       guard let index = nodes.firstIndex(where: { $0.id == refreshedNode.id }) else { continue }
       nodes[index].metrics = refreshedNode.metrics
       nodes[index].info.status = refreshedNode.info.status
 
-      if shouldRefreshHistory {
+      if includeHistory {
         nodes[index].history = refreshedNode.history
       }
     }
+
+    shouldRefreshHistory.toggle()
   }
 
   private func applyRealtimeSnapshots(_ snapshots: [NodeSnapshot]) {

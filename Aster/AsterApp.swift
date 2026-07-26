@@ -18,7 +18,7 @@ struct AsterApp: App {
         .frame(minWidth: 900, minHeight: 600)
         .background(AsterBackground())
         .containerBackground(.ultraThinMaterial, for: .window)
-        .task { await store.restoreSavedConnectionIfNeeded() }
+        .task { await store.bootstrap() }
         .onChange(of: scenePhase) { _, phase in
           store.setWindowActive(phase == .active)
         }

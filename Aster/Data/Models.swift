@@ -76,12 +76,26 @@ enum ConnectionState: Equatable {
   case connected
   case reconnecting(attempt: Int)
   case failed(String)
+  case unauthorized
+  case certificateMismatch
 
   var dotStatus: NodeStatus {
     switch self {
     case .connected: .online
     case .connecting, .reconnecting: .warning
-    case .unconfigured, .failed: .offline
+    case .unconfigured, .failed, .unauthorized, .certificateMismatch: .offline
+    }
+  }
+
+  var localizedText: String {
+    switch self {
+    case .unconfigured: L.text("connection.unconfigured")
+    case .connecting: L.text("connection.connecting")
+    case .connected: L.text("connection.connected")
+    case .reconnecting: L.text("connection.reconnecting")
+    case .failed(let message): "\(L.text("connection.failed")) · \(message)"
+    case .unauthorized: L.text("connection.unauthorized")
+    case .certificateMismatch: L.text("connection.certMismatch")
     }
   }
 }

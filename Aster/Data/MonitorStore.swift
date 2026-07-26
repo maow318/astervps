@@ -62,6 +62,7 @@ final class MonitorStore {
       let source = try KomariDataSource(endpoint: endpoint, token: token)
       source.onStateChange = { [weak self] state in self?.connectionState = state }
       source.onMetrics = { [weak self] snapshots in self?.applyRealtimeSnapshots(snapshots) }
+      source.pollInterval = { [weak self] in self?.isWindowActive == true ? 2 : 30 }
       let dashboard = try await source.loadDashboard()
       dataSource = source
       nodes = dashboard.nodes

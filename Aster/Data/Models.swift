@@ -16,6 +16,9 @@ struct NodeInfo: Identifiable, Codable, Hashable {
   var tags: [String]
   var groupID: UUID?
   var createdAt: Date
+  var memoryTotalBytes: Double = 0
+  var swapTotalBytes: Double = 0
+  var diskTotalBytes: Double = 0
   /// Komari's UUID string. Kept separately so incompatible server IDs can still be displayed.
   var serverID: String? = nil
 }

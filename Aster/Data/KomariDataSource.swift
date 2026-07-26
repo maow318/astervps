@@ -13,6 +13,8 @@ final class KomariDataSource: MonitorDataSource {
   private var reconnectTask: Task<Void, Never>?
   private var reconnectAttempt = 0
   private var isStopped = false
+  private var pollTask: Task<Void, Never>?
+  var pollInterval: (@MainActor () -> TimeInterval)?
   private var latestNodes: [String: NodeSnapshot] = [:]
   var onStateChange: (@MainActor (ConnectionState) -> Void)?
   var onMetrics: (@MainActor ([NodeSnapshot]) -> Void)?
@@ -69,6 +71,7 @@ final class KomariDataSource: MonitorDataSource {
     receiveTask?.cancel()
     reconnectTask?.cancel()
     socket?.cancel(with: .goingAway, reason: nil)
+    pollTask?.cancel()
     socket = nil
   }
 
@@ -93,8 +96,24 @@ final class KomariDataSource: MonitorDataSource {
           self.reconnectAttempt = 0
           self.onStateChange?(.connected)
           self.receiveMessages(from: task)
+          self.startPolling(task)
         } else {
           self.scheduleReconnect()
+        }
+      }
+    }
+  }
+
+  private func startPolling(_ task: URLSessionWebSocketTask) {
+    pollTask?.cancel()
+    pollTask = Task { [weak self] in
+      while !Task.isCancelled {
+        let interval = self?.pollInterval?() ?? 2
+        try? await Task.sleep(for: .seconds(interval))
+        guard !Task.isCancelled, self?.isStopped == false else { return }
+        task.send(.string("get")) { [weak self] error in
+          guard error != nil, self?.isStopped == false else { return }
+          Task { @MainActor in self?.scheduleReconnect() }
         }
       }
     }
@@ -164,6 +183,7 @@ final class KomariDataSource: MonitorDataSource {
 
   private func authorizedRequest(_ url: URL) -> URLRequest {
     var request = URLRequest(url: url)
+    request.setValue(baseURL.absoluteString, forHTTPHeaderField: "Origin")
     if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
     return request
   }

@@ -59,6 +59,8 @@ struct SettingsView: View {
 struct MachineManagementView: View {
   @Environment(MonitorStore.self) private var store
   @State private var pendingDeletion: MachineConfig?
+  @State private var renameTarget: MachineConfig?
+  @State private var renameText = ""
 
   var body: some View {
     VStack(alignment: .leading, spacing: AsterSpacing.md) {
@@ -105,6 +107,23 @@ struct MachineManagementView: View {
         pendingDeletion = nil
       }
     }
+    .alert(
+      L.text("machines.rename"),
+      isPresented: Binding(
+        get: { renameTarget != nil },
+        set: { if !$0 { renameTarget = nil } })
+    ) {
+      TextField(L.text("add.name"), text: $renameText)
+      Button(L.text("add.save")) {
+        if let machine = renameTarget {
+          store.renameMachine(machine.id, to: renameText)
+        }
+        renameTarget = nil
+      }
+      Button(L.text("action.cancel"), role: .cancel) {
+        renameTarget = nil
+      }
+    }
   }
 
   private func machineRow(_ machine: MachineConfig) -> some View {
@@ -127,6 +146,14 @@ struct MachineManagementView: View {
           .foregroundStyle(AsterColor.foregroundSecondary)
           .monospaced()
       }
+      Button {
+        renameText = machine.name
+        renameTarget = machine
+      } label: {
+        Image(systemName: "pencil")
+      }
+      .buttonStyle(.borderless)
+      .help(L.text("machines.rename"))
       Button(role: .destructive) {
         pendingDeletion = machine
       } label: {

@@ -84,15 +84,13 @@ struct NodeDetailView: View {
           Text(node.info.flag).font(.title2)
           Text(node.info.name).font(AsterTypography.pageTitle)
         }
-        Label("\(node.info.region) · \(node.info.operatingSystem)", systemImage: "location.fill")
+        Text("\(node.info.region) · \(node.info.operatingSystem)")
           .foregroundStyle(AsterColor.foregroundSecondary)
         HStack { ForEach(node.info.tags, id: \.self) { TagChip(text: $0) } }
       }
       Spacer()
-      Text(
-        Duration.seconds(node.metrics.uptime).formatted(
-          .units(allowed: [.days, .hours, .minutes], width: .abbreviated))
-      ).font(AsterTypography.metric).foregroundStyle(AsterColor.foregroundSecondary)
+      Text(AsterFormat.uptime(node.metrics.uptime))
+        .font(AsterTypography.metric).foregroundStyle(AsterColor.foregroundSecondary)
     }
   }
   private func metricRings(_ node: NodeSnapshot) -> some View {

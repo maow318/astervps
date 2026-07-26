@@ -152,6 +152,16 @@ final class MonitorStore {
     machines.contains { $0.endpoint == endpoint }
   }
 
+  func renameMachine(_ id: UUID, to name: String) {
+    let trimmed = name.trimmingCharacters(in: .whitespaces)
+    guard !trimmed.isEmpty, let index = machines.firstIndex(where: { $0.id == id }) else { return }
+    machines[index].name = trimmed
+    MachineStore.save(machines)
+    if let nodeIndex = nodes.firstIndex(where: { $0.id == id }) {
+      nodes[nodeIndex].info.name = trimmed
+    }
+  }
+
   /// Authenticated, pinned verification used by the add-machine flow after
   /// the user confirmed the fingerprint.
   func verifyMachine(endpoint: String, token: String, fingerprint: String) async throws -> AgentMeta

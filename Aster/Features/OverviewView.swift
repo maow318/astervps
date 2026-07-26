@@ -31,43 +31,45 @@ struct OverviewView: View {
 private struct HeaderStatistics: View {
   @Environment(MonitorStore.self) private var store
   var body: some View {
-    ViewThatFits(in: .horizontal) {
-      HStack(spacing: AsterSpacing.sm) {
-        stat(L.text("overview.nodes"), "\(store.nodes.count)", "server.rack")
-        stat(
-          L.text("overview.availability"),
-          store.nodes.isEmpty
-            ? "—" : "\(Int(Double(store.onlineCount) / Double(store.nodes.count) * 100))%",
-          "checkmark.circle")
-        stat(
-          L.text("overview.traffic"),
-          ByteCountFormatter.string(
-            fromByteCount: Int64(
-              store.nodes.reduce(0) {
-                $0 + $1.metrics.downloadBytesPerSecond + $1.metrics.uploadBytesPerSecond
-              }), countStyle: .binary) + "/s", "arrow.left.arrow.right")
-        stat(
-          L.text("overview.load"),
-          String(
-            format: "%.2f",
-            store.nodes.map(\.metrics.loadAverage).reduce(0, +) / Double(max(store.nodes.count, 1))),
-          "gauge.with.dots.needle.50percent")
-      }
-      VStack(spacing: AsterSpacing.sm) {
-        stat(L.text("overview.nodes"), "\(store.nodes.count)", "server.rack")
-        stat(
-          L.text("overview.availability"), "\(store.onlineCount)/\(store.nodes.count)",
-          "checkmark.circle")
-      }
+    // A plain HStack with equal flexible widths: ViewThatFits could never
+    // pick the horizontal variant because maxWidth-infinity cards report an
+    // unbounded ideal width.
+    HStack(spacing: AsterSpacing.sm) {
+      stat(L.text("overview.nodes"), "\(store.nodes.count)", "server.rack")
+      stat(
+        L.text("overview.availability"), "\(store.onlineCount)/\(store.nodes.count)",
+        "checkmark.circle")
+      stat(L.text("overview.traffic"), totalTraffic, "arrow.left.arrow.right")
+      stat(
+        L.text("overview.load"),
+        String(
+          format: "%.2f",
+          store.nodes.map(\.metrics.loadAverage).reduce(0, +) / Double(max(store.nodes.count, 1))),
+        "gauge.with.dots.needle.50percent")
     }
+  }
+
+  private var totalTraffic: String {
+    let total = store.nodes.reduce(0.0) {
+      $0 + $1.metrics.downloadBytesPerSecond + $1.metrics.uploadBytesPerSecond
+    }
+    let rate = AsterFormat.rate(total)
+    return "\(rate.value) \(rate.unit)"
   }
   private func stat(_ title: String, _ value: String, _ symbol: String) -> some View {
     GlassCard {
-      Label(title, systemImage: symbol).font(AsterTypography.caption).foregroundStyle(
-        AsterColor.foregroundSecondary)
-      Text(value).font(AsterTypography.metricLarge).foregroundStyle(AsterColor.foregroundPrimary)
-        .contentTransition(.numericText())
-    }.frame(maxWidth: .infinity)
+      // Single container view: GlassCard's builder would otherwise style each
+      // sibling as its own card.
+      VStack(alignment: .leading, spacing: 6) {
+        Label(title, systemImage: symbol).font(AsterTypography.caption).foregroundStyle(
+          AsterColor.foregroundSecondary)
+        Text(value).font(AsterTypography.metricLarge).foregroundStyle(AsterColor.foregroundPrimary)
+          .contentTransition(.numericText())
+          .lineLimit(1)
+          .minimumScaleFactor(0.5)
+      }
+      .frame(maxWidth: .infinity, alignment: .leading)
+    }
   }
 }
 

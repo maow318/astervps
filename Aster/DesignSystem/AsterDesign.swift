@@ -45,3 +45,26 @@ enum AsterAnimation {
 enum L {
   static func text(_ key: String) -> String { String(localized: String.LocalizationValue(key)) }
 }
+
+enum AsterFormat {
+  /// Adaptive network-rate formatting. Idle servers run at KB/s levels, so a
+  /// fixed MB/s unit would render everything as "0.0" and look broken.
+  static func rate(_ bytesPerSecond: Double) -> (value: String, unit: String) {
+    switch bytesPerSecond {
+    case ..<1_000:
+      return (String(format: "%.0f", bytesPerSecond), "B/s")
+    case ..<1_000_000:
+      return (String(format: "%.1f", bytesPerSecond / 1_000), "KB/s")
+    case ..<1_000_000_000:
+      return (String(format: "%.1f", bytesPerSecond / 1_000_000), "MB/s")
+    default:
+      return (String(format: "%.2f", bytesPerSecond / 1_000_000_000), "GB/s")
+    }
+  }
+
+  static func uptime(_ seconds: TimeInterval) -> String {
+    let duration = Duration.seconds(seconds).formatted(
+      .units(allowed: [.days, .hours, .minutes], width: .abbreviated, maximumUnitCount: 2))
+    return "\(L.text("card.uptime")) \(duration)"
+  }
+}

@@ -15,8 +15,11 @@ struct MetricRing: View {
         style: StrokeStyle(lineWidth: 7, lineCap: .round)
       ).rotationEffect(.degrees(-90))
       VStack(spacing: 1) {
-        Text(value, format: .number.precision(.fractionLength(0))).font(AsterTypography.metric)
-          .contentTransition(.numericText())
+        HStack(alignment: .firstTextBaseline, spacing: 0) {
+          Text(value, format: .number.precision(.fractionLength(0))).font(AsterTypography.metric)
+            .contentTransition(.numericText())
+          Text("%").font(AsterTypography.caption).foregroundStyle(AsterColor.foregroundSecondary)
+        }
         Text(label).font(AsterTypography.caption).foregroundStyle(AsterColor.foregroundSecondary)
       }
     }.frame(width: size, height: size).accessibilityElement(children: .combine)

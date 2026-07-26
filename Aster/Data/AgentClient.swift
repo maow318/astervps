@@ -48,7 +48,8 @@ final class AgentClient {
     let session = URLSession(
       configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
     defer { session.finishTasksAndInvalidate() }
-    _ = try await session.data(from: url.appendingPathComponent("/v1/meta"))
+    let request = URLRequest(url: url.appendingPathComponent("/v1/meta"), timeoutInterval: 8)
+    _ = try await session.data(for: request)
     guard let fingerprint = delegate.observedFingerprint else {
       throw AgentError.invalidEndpoint
     }

@@ -182,7 +182,7 @@ struct AddMachineSheet: View {
   // MARK: - Helpers
 
   private var installCommand: String {
-    "curl -fsSL https://example.invalid/aster-agent/install.sh | sh -s -- --token \(token) --listen :9977"
+    AgentDistribution.installCommand(token: token) ?? L.text("add.installPending")
   }
 
   private var systemdUnit: String {

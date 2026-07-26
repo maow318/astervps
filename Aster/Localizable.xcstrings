@@ -256,6 +256,22 @@
         }
       }
     },
+    "add.installPending": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One-line install will be available after the first GitHub release — use Manual install below for now."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一键安装命令将在 GitHub 仓库发布后可用,当前请使用下方“手动安装”。"
+          }
+        }
+      }
+    },
     "add.manualHint": {
       "localizations": {
         "en": {

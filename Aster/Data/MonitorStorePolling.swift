@@ -65,6 +65,15 @@ extension MonitorStore {
   private func apply(_ result: MachinePollResult) {
     guard let index = nodes.firstIndex(where: { $0.id == result.id }) else { return }
     let id = result.id
+    let previousState = machineStates[id]
+    defer {
+      #if DEBUG
+        // State transitions go to stdout so headless E2E runs can assert on them.
+        if machineStates[id] != previousState {
+          print("[aster-debug] machine \(id) state -> \(machineStates[id].map(String.init(describing:)) ?? "nil")")
+        }
+      #endif
+    }
     switch result.outcome {
     case .success(let metrics, let meta, let history):
       machineStates[id] = .connected

@@ -101,7 +101,7 @@ extension MonitorStore {
       switch error {
       case .unauthorized: machineStates[id] = .unauthorized
       case .certificateMismatch: machineStates[id] = .certificateMismatch
-      default: machineStates[id] = .failed(error.localizedDescription ?? "")
+      default: machineStates[id] = .failed(error.localizedDescription)
       }
     case .failure(let message):
       nodes[index].info.status = .offline

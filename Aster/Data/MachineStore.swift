@@ -9,6 +9,9 @@ struct MachineConfig: Identifiable, Codable, Hashable {
   var endpoint: String
   var certFingerprint: String
   var createdAt: Date
+  /// Cached geo lookup (see GeoLookup); nil until the first resolution.
+  var countryCode: String? = nil
+  var city: String? = nil
 }
 
 enum MachineStore {

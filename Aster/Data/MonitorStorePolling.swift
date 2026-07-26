@@ -81,7 +81,7 @@ extension MonitorStore {
       if let meta {
         metaByMachine[id] = meta
         nodes[index].info.operatingSystem = meta.os
-        nodes[index].info.region = meta.hostname
+        nodes[index].info.region = subtitle(machineID: id)
       }
       nodes[index].metrics = metrics.nodeMetrics
       nodes[index].info.status = .online

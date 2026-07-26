@@ -1,0 +1,32 @@
+import SwiftUI
+
+struct OverviewView: View {
+    @Environment(MonitorStore.self) private var store
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) { ScrollView { VStack(alignment: .leading, spacing: AsterSpacing.lg) { HeaderStatistics(); NodeGrid(nodes: store.nodes) }.padding(AsterSpacing.lg) }; StatusBar() }
+            .background(AsterColor.background1.opacity(0.65))
+            .navigationTitle(L.text("overview.title"))
+            .navigationDestination(for: UUID.self) { id in if let node = store.node(id: id) { NodeDetailView(nodeID: node.id) } }
+        }
+    }
+}
+
+private struct HeaderStatistics: View {
+    @Environment(MonitorStore.self) private var store
+    var body: some View { ViewThatFits(in: .horizontal) { HStack(spacing: AsterSpacing.sm) { stat(L.text("overview.nodes"), "\(store.nodes.count)", "server.rack"); stat(L.text("overview.availability"), store.nodes.isEmpty ? "—" : "\(Int(Double(store.onlineCount) / Double(store.nodes.count) * 100))%", "checkmark.circle"); stat(L.text("overview.traffic"), ByteCountFormatter.string(fromByteCount: Int64(store.nodes.reduce(0) { $0 + $1.metrics.downloadBytesPerSecond + $1.metrics.uploadBytesPerSecond }), countStyle: .binary) + "/s", "arrow.left.arrow.right"); stat(L.text("overview.load"), String(format: "%.2f", store.nodes.map(\.metrics.loadAverage).reduce(0, +) / Double(max(store.nodes.count, 1))), "gauge.with.dots.needle.50percent") }; VStack(spacing: AsterSpacing.sm) { stat(L.text("overview.nodes"), "\(store.nodes.count)", "server.rack"); stat(L.text("overview.availability"), "\(store.onlineCount)/\(store.nodes.count)", "checkmark.circle") } } }
+    private func stat(_ title: String, _ value: String, _ symbol: String) -> some View { GlassCard { Label(title, systemImage: symbol).font(AsterTypography.caption).foregroundStyle(AsterColor.foregroundSecondary); Text(value).font(AsterTypography.metricLarge).foregroundStyle(AsterColor.foregroundPrimary).contentTransition(.numericText()) }.frame(maxWidth: .infinity) }
+}
+
+struct NodeGrid: View {
+    let nodes: [NodeSnapshot]
+    private let columns = [GridItem(.adaptive(minimum: 285, maximum: 380), spacing: AsterSpacing.md)]
+    var body: some View { LazyVGrid(columns: columns, spacing: AsterSpacing.md) { ForEach(nodes) { NodeCard(node: $0).transition(.opacity.combined(with: .move(edge: .bottom))) } }.animation(AsterAnimation.gentle, value: nodes) }
+}
+
+struct StatusBar: View {
+    @Environment(MonitorStore.self) private var store
+    var body: some View { BottomStatusBar(summary: String(format: L.text("status.summary"), store.onlineCount, store.offlineCount)) { Button(action: {}) { Image(systemName: "plus") }.help(L.text("action.add")) } trailing: { Button(action: {}) { Image(systemName: "magnifyingglass") }.help(L.text("action.search")); Button(action: {}) { Image(systemName: "clock.arrow.circlepath") }.help(L.text("action.history")); Button(action: {}) { Image(systemName: "questionmark.circle") }.help(L.text("action.help")) } }
+}
+
+#Preview { OverviewView().environment(MonitorStore()).frame(width: 1100, height: 750) }

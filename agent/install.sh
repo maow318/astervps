@@ -10,7 +10,7 @@
 #   --uninstall       stop the service and remove the binary
 set -eu
 
-REPO="ASTER_REPO_PLACEHOLDER"
+REPO="maow318/astervps"
 TOKEN=""
 LISTEN=":9977"
 STATE_DIR="/var/lib/aster-agent"

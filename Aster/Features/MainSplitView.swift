@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SidebarDestination: Hashable {
-  case overview, globe, billing, machines
+  case overview, billing, machines
   case group(UUID)
   case alerts, settings
 }
@@ -10,12 +10,11 @@ struct MainSplitView: View {
   @Environment(MonitorStore.self) private var store
   @State private var selection: SidebarDestination? = MainSplitView.initialSelection
 
-  /// DEBUG-only launch hook (`-asterPage globe`) so headless runs can land on
+  /// DEBUG-only launch hook (`-asterPage billing`) so headless runs can land on
   /// a specific page for screenshots.
   private static var initialSelection: SidebarDestination {
     #if DEBUG
       switch UserDefaults.standard.string(forKey: "asterPage") {
-      case "globe": return .globe
       case "billing": return .billing
       case "machines": return .machines
       default: return .overview
@@ -31,8 +30,6 @@ struct MainSplitView: View {
         Section {
           Label(L.text("sidebar.overview"), systemImage: "rectangle.3.group.fill").tag(
             SidebarDestination.overview)
-          Label(L.text("sidebar.globe"), systemImage: "globe.asia.australia.fill").tag(
-            SidebarDestination.globe)
           Label(L.text("sidebar.billing"), systemImage: "creditcard").tag(
             SidebarDestination.billing)
           Label(L.text("settings.machines"), systemImage: "server.rack").tag(
@@ -60,7 +57,6 @@ struct MainSplitView: View {
   @ViewBuilder private var destinationView: some View {
     switch selection ?? .overview {
     case .overview: OverviewView()
-    case .globe: GlobePage()
     case .billing: BillingPage()
     case .machines: MachinesView()
     case .group(let id): GroupNodesView(groupID: id)

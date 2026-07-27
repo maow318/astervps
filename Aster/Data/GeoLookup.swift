@@ -44,24 +44,9 @@ enum GeoLookup {
     return false
   }
 
-  /// This Mac's own public location, used as the globe's home marker.
-  static func selfLocation() async -> (lat: Double, lon: Double)? {
-    guard let url = URL(string: "https://api.ip.sb/geoip"), let data = await fetch(url) else {
-      return nil
-    }
-    let decoder = JSONDecoder()
-    decoder.keyDecodingStrategy = .convertFromSnakeCase
-    guard let response = try? decoder.decode(IPSBResponse.self, from: data),
-      let lat = response.latitude, let lon = response.longitude
-    else { return nil }
-    return (lat, lon)
-  }
-
   private struct IPSBResponse: Decodable {
     let countryCode: String
     let city: String?
-    let latitude: Double?
-    let longitude: Double?
   }
 
   private static func queryIPSB(_ host: String) async -> Info? {

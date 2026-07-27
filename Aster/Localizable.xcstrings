@@ -1595,38 +1595,6 @@
         }
       }
     },
-    "globe.regions": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld regions lit"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "点亮 %lld 个地区"
-          }
-        }
-      }
-    },
-    "globe.totalServers": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Total servers"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "服务器总数"
-          }
-        }
-      }
-    },
     "hardware.format": {
       "extractionState": "stale",
       "localizations": {
@@ -2625,22 +2593,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "资产统计"
-          }
-        }
-      }
-    },
-    "sidebar.globe": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Globe"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "全球分布"
           }
         }
       }

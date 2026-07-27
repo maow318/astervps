@@ -8,7 +8,7 @@ struct OverviewView: View {
         ScrollView {
           VStack(alignment: .leading, spacing: AsterSpacing.lg) {
             HeaderStatistics()
-            if store.nodes.isEmpty {
+            if store.visibleNodes.isEmpty {
               VStack(spacing: AsterSpacing.md) {
                 EmptyStateView(
                   symbol: "network", title: L.text("connection.unconfigured"),
@@ -22,7 +22,7 @@ struct OverviewView: View {
               }
               .frame(maxWidth: .infinity)
             } else {
-              NodesDisplay(nodes: store.nodes)
+              NodesDisplay(nodes: store.visibleNodes)
             }
           }.padding(AsterSpacing.lg)
         }
@@ -44,22 +44,22 @@ private struct HeaderStatistics: View {
     // pick the horizontal variant because maxWidth-infinity cards report an
     // unbounded ideal width.
     HStack(spacing: AsterSpacing.sm) {
-      stat(L.text("overview.nodes"), "\(store.nodes.count)", "server.rack")
+      stat(L.text("overview.nodes"), "\(store.visibleNodes.count)", "server.rack")
       stat(
-        L.text("overview.availability"), "\(store.onlineCount)/\(store.nodes.count)",
+        L.text("overview.availability"), "\(store.onlineCount)/\(store.visibleNodes.count)",
         "checkmark.circle")
       stat(L.text("overview.traffic"), totalTraffic, "arrow.left.arrow.right")
       stat(
         L.text("overview.load"),
         String(
           format: "%.2f",
-          store.nodes.map(\.metrics.loadAverage).reduce(0, +) / Double(max(store.nodes.count, 1))),
+          store.visibleNodes.map(\.metrics.loadAverage).reduce(0, +) / Double(max(store.visibleNodes.count, 1))),
         "gauge.with.dots.needle.50percent")
     }
   }
 
   private var totalTraffic: String {
-    let total = store.nodes.reduce(0.0) {
+    let total = store.visibleNodes.reduce(0.0) {
       $0 + $1.metrics.downloadBytesPerSecond + $1.metrics.uploadBytesPerSecond
     }
     let rate = AsterFormat.rate(total)

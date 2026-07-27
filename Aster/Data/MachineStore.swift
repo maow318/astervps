@@ -13,8 +13,58 @@ struct MachineConfig: Identifiable, Codable, Hashable {
   var countryCode: String? = nil
   var city: String? = nil
   /// User-entered billing note and expiry, shown on cards and in the table.
+  /// `price` is the legacy free-text form; the structured fields below win
+  /// when set. All additions stay optional so stored JSON keeps decoding.
   var price: String? = nil
   var expiresAt: Date? = nil
+  var priceAmount: Double? = nil
+  var currency: String? = nil
+  var billingCycle: String? = nil
+  var autoRenew: Bool? = nil
+  /// Semicolon-separated tags, Komari-style.
+  var tags: String? = nil
+  var group: String? = nil
+  var note: String? = nil
+  var isHidden: Bool? = nil
+
+  var tagList: [String] {
+    (tags ?? "").split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }
+      .filter { !$0.isEmpty }
+  }
+
+  var hidden: Bool { isHidden ?? false }
+
+  var cycle: BillingCycle? {
+    billingCycle.flatMap(BillingCycle.init(rawValue:))
+  }
+
+  /// "$17.93/年" composed from the structured fields, or the legacy text.
+  var displayPrice: String? {
+    guard let priceAmount else { return price }
+    if priceAmount < 0 { return L.text("billing.free") }
+    if priceAmount == 0 { return nil }
+    let base = "\(currency ?? "$")\(String(format: "%.2f", priceAmount))"
+    guard let cycle else { return base }
+    return "\(base)/\(L.text(cycle.shortKey))"
+  }
+}
+
+enum BillingCycle: String, CaseIterable, Identifiable {
+  case monthly, quarterly, semiannual, yearly, biennial, triennial
+
+  var id: String { rawValue }
+  var shortKey: String { "cycle.\(rawValue)" }
+
+  var months: Int {
+    switch self {
+    case .monthly: 1
+    case .quarterly: 3
+    case .semiannual: 6
+    case .yearly: 12
+    case .biennial: 24
+    case .triennial: 36
+    }
+  }
 }
 
 enum MachineStore {

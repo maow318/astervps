@@ -23,6 +23,8 @@ final class MonitorStore {
   var isPolling = false
   var lastHistorySync: [UUID: Date] = [:]
   var detailHours: [UUID: Int] = [:]
+  /// Sidebar groups derive from machine group names (see extension).
+  var groupIDByName: [String: UUID] = [:]
 
   init() {
     startRefreshLoop()
@@ -34,10 +36,19 @@ final class MonitorStore {
     #if DEBUG
       applyDebugLaunchArguments()
     #endif
+    processAutoRenewals()
+    rebuildGroups()
     activateMachines()
     await pollAgents()
     for machine in machines {
       ensureGeo(for: machine.id)
+    }
+  }
+
+  /// Nodes not marked hidden; what the list pages render.
+  var visibleNodes: [NodeSnapshot] {
+    nodes.filter { node in
+      !(machines.first { $0.id == node.id }?.hidden ?? false)
     }
   }
 
@@ -50,11 +61,11 @@ final class MonitorStore {
   }
 
   var onlineCount: Int {
-    nodes.filter { $0.info.status == .online }.count
+    visibleNodes.filter { $0.info.status == .online }.count
   }
 
   var offlineCount: Int {
-    nodes.filter { $0.info.status == .offline }.count
+    visibleNodes.filter { $0.info.status == .offline }.count
   }
 
   /// Aggregate indicator for the bottom bar: the worst individual state wins.
@@ -77,135 +88,12 @@ final class MonitorStore {
     machineStates[id] ?? .connecting
   }
 
-  // MARK: - Machine management
-
-  func addMachine(name: String, endpoint: String, token: String, fingerprint: String) {
-    let machine = MachineConfig(
-      id: UUID(), name: name, endpoint: endpoint, certFingerprint: fingerprint, createdAt: .now)
-    try? KeychainStore.saveToken(token, for: machine.id)
-    machines.append(machine)
-    MachineStore.save(machines)
-    nodes.append(placeholderNode(for: machine))
-    makeClient(for: machine)
-    Task { await pollAgents() }
-    ensureGeo(for: machine.id)
-  }
-
-  func removeMachine(_ id: UUID) {
-    machines.removeAll { $0.id == id }
-    MachineStore.save(machines)
-    KeychainStore.deleteToken(for: id)
-    historyStore.delete(for: id)
-    clients[id]?.invalidate()
-    clients[id] = nil
-    machineStates[id] = nil
-    metaByMachine[id] = nil
-    lastHistorySync[id] = nil
-    nodes.removeAll { $0.id == id }
-  }
-
-  func hasMachine(endpoint: String) -> Bool {
-    machines.contains { $0.endpoint == endpoint }
-  }
-
-  func updateMachine(_ id: UUID, name: String, price: String?, expiresAt: Date?) {
-    let trimmed = name.trimmingCharacters(in: .whitespaces)
-    guard !trimmed.isEmpty, let index = machines.firstIndex(where: { $0.id == id }) else { return }
-    machines[index].name = trimmed
-    machines[index].price = price?.isEmpty == true ? nil : price
-    machines[index].expiresAt = expiresAt
-    MachineStore.save(machines)
-    if let nodeIndex = nodes.firstIndex(where: { $0.id == id }) {
-      nodes[nodeIndex].info.name = trimmed
-      nodes[nodeIndex].info.billingPrice = machines[index].price
-      nodes[nodeIndex].info.billingExpiresAt = expiresAt
-    }
-  }
-
-  /// Authenticated, pinned verification used by the add-machine flow after
-  /// the user confirmed the fingerprint.
-  func verifyMachine(endpoint: String, token: String, fingerprint: String) async throws -> AgentMeta
-  {
-    let client = try AgentClient(endpoint: endpoint, token: token, fingerprint: fingerprint)
-    defer { client.invalidate() }
-    return try await client.meta()
-  }
-
-  private func activateMachines() {
-    teardownClients()
-    nodes = machines.map { placeholderNode(for: $0) }
-    for machine in machines {
-      makeClient(for: machine)
-    }
-  }
-
-  private func makeClient(for machine: MachineConfig) {
-    guard
-      let token = KeychainStore.readToken(for: machine.id),
-      let client = try? AgentClient(
-        endpoint: machine.endpoint, token: token, fingerprint: machine.certFingerprint)
-    else {
-      machineStates[machine.id] = .failed(L.text("machines.missingToken"))
-      return
-    }
-    clients[machine.id] = client
-    machineStates[machine.id] = .connecting
-  }
-
-  private func teardownClients() {
-    for client in clients.values {
-      client.invalidate()
-    }
-    clients = [:]
-    machineStates = [:]
-    isPolling = false
-  }
-
-  private func placeholderNode(for machine: MachineConfig) -> NodeSnapshot {
-    let info = NodeInfo(
-      id: machine.id, name: machine.name, region: machine.city ?? "",
-      flag: machine.countryCode.map(GeoLookup.flag) ?? "", operatingSystem: "",
-      status: .offline, tags: [], groupID: nil, createdAt: machine.createdAt,
-      billingPrice: machine.price, billingExpiresAt: machine.expiresAt)
-    return NodeSnapshot(
-      info: info, metrics: .empty,
-      history: historyStore.metricsHistory(for: machine.id, hours: 1))
-  }
-
   // MARK: - History
 
   func loadHistory(for nodeID: UUID, hours: Int) async {
     guard let index = nodes.firstIndex(where: { $0.id == nodeID }) else { return }
     detailHours[nodeID] = hours
     nodes[index].history = historyStore.metricsHistory(for: nodeID, hours: hours)
-  }
-
-  /// One-shot, cached IP geolocation: flag + city ride along on the node.
-  private func ensureGeo(for machineID: UUID) {
-    guard let machine = machines.first(where: { $0.id == machineID }),
-      machine.countryCode == nil,
-      let host = URL(string: machine.endpoint)?.host,
-      !GeoLookup.isPrivateHost(host)
-    else { return }
-    Task {
-      guard let info = await GeoLookup.lookup(host: host),
-        let index = machines.firstIndex(where: { $0.id == machineID })
-      else { return }
-      machines[index].countryCode = info.countryCode
-      machines[index].city = info.city
-      MachineStore.save(machines)
-      if let nodeIndex = nodes.firstIndex(where: { $0.id == machineID }) {
-        nodes[nodeIndex].info.flag = info.flag
-        nodes[nodeIndex].info.region = subtitle(machineID: machineID)
-      }
-    }
-  }
-
-  /// Card subtitle: "hostname · city" once both are known.
-  func subtitle(machineID: UUID) -> String {
-    let city = machines.first(where: { $0.id == machineID })?.city
-    let hostname = metaByMachine[machineID]?.hostname
-    return [hostname, city].compactMap { $0 }.joined(separator: " · ")
   }
 
   func historyError(for nodeID: UUID) -> String? {

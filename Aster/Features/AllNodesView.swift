@@ -8,7 +8,7 @@ struct AllNodesView: View {
       VStack(spacing: 0) {
         ScrollView {
           NodesDisplay(
-            nodes: store.nodes.filter {
+            nodes: store.visibleNodes.filter {
               query.isEmpty || $0.info.name.localizedCaseInsensitiveContains(query)
                 || $0.info.region.localizedCaseInsensitiveContains(query)
             }
@@ -32,7 +32,7 @@ struct GroupNodesView: View {
     NavigationStack {
       VStack(spacing: 0) {
         ScrollView {
-          NodesDisplay(nodes: store.nodes.filter { $0.info.groupID == groupID }).padding(
+          NodesDisplay(nodes: store.visibleNodes.filter { $0.info.groupID == groupID }).padding(
             AsterSpacing.lg)
         }
         StatusBar()

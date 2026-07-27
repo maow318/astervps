@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum SidebarDestination: Hashable {
-  case overview, allNodes
+  case overview, machines
   case group(UUID)
   case alerts, settings
 }
@@ -16,8 +16,8 @@ struct MainSplitView: View {
         Section {
           Label(L.text("sidebar.overview"), systemImage: "rectangle.3.group.fill").tag(
             SidebarDestination.overview)
-          Label(L.text("sidebar.nodes"), systemImage: "server.rack").tag(
-            SidebarDestination.allNodes)
+          Label(L.text("settings.machines"), systemImage: "server.rack").tag(
+            SidebarDestination.machines)
         }
         Section(L.text("sidebar.groups")) {
           ForEach(store.groups) { group in
@@ -41,7 +41,7 @@ struct MainSplitView: View {
   @ViewBuilder private var destinationView: some View {
     switch selection ?? .overview {
     case .overview: OverviewView()
-    case .allNodes: AllNodesView()
+    case .machines: MachinesView()
     case .group(let id): GroupNodesView(groupID: id)
     case .alerts: AlertsView()
     case .settings: SettingsView()

@@ -10,7 +10,6 @@ struct SettingsView: View {
     TabView(selection: $selected) {
       general.tag("general")
       appearance.tag("appearance")
-      machines.tag("machines")
       about.tag("about")
     }
     .padding(AsterSpacing.lg)
@@ -36,11 +35,6 @@ struct SettingsView: View {
     .tabItem { Label(L.text("settings.appearance"), systemImage: "circle.lefthalf.filled") }
   }
 
-  private var machines: some View {
-    MachineManagementView()
-      .tabItem { Label(L.text("settings.machines"), systemImage: "server.rack") }
-  }
-
   private var about: some View {
     VStack(spacing: AsterSpacing.sm) {
       Image(systemName: "waveform.path.ecg")
@@ -53,94 +47,6 @@ struct SettingsView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
     .tabItem { Label(L.text("settings.about"), systemImage: "info.circle") }
-  }
-}
-
-struct MachineManagementView: View {
-  @Environment(MonitorStore.self) private var store
-  @State private var pendingDeletion: MachineConfig?
-  @State private var editTarget: MachineConfig?
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: AsterSpacing.md) {
-      if store.machines.isEmpty {
-        VStack(spacing: AsterSpacing.sm) {
-          Text(L.text("machines.empty"))
-            .foregroundStyle(AsterColor.foregroundSecondary)
-          Button(L.text("action.add")) { store.isAddMachinePresented = true }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else {
-        List {
-          ForEach(store.machines) { machine in
-            machineRow(machine)
-          }
-        }
-        .listStyle(.inset)
-        HStack {
-          Button {
-            store.isAddMachinePresented = true
-          } label: {
-            Label(L.text("action.add"), systemImage: "plus")
-          }
-          Spacer()
-        }
-      }
-    }
-    .confirmationDialog(
-      L.text("machines.deleteConfirm"),
-      isPresented: Binding(
-        get: { pendingDeletion != nil },
-        set: { if !$0 { pendingDeletion = nil } })
-    ) {
-      Button(L.text("machines.delete"), role: .destructive) {
-        if let machine = pendingDeletion {
-          store.removeMachine(machine.id)
-        }
-        pendingDeletion = nil
-      }
-    }
-    .sheet(item: $editTarget) { machine in
-      MachineEditSheet(machine: machine)
-    }
-  }
-
-  private func machineRow(_ machine: MachineConfig) -> some View {
-    let state = store.machineState(machine.id)
-    return HStack(spacing: AsterSpacing.sm) {
-      StatusDot(status: state.dotStatus, diameter: 8)
-      VStack(alignment: .leading, spacing: 2) {
-        Text(machine.name).font(AsterTypography.sectionTitle)
-        Text(machine.endpoint)
-          .font(AsterTypography.caption)
-          .foregroundStyle(AsterColor.foregroundSecondary)
-      }
-      Spacer()
-      VStack(alignment: .trailing, spacing: 2) {
-        Text(state.localizedText)
-          .font(AsterTypography.caption)
-          .lineLimit(1)
-        Text("\(L.text("machines.fingerprint")) …\(machine.certFingerprint.suffix(8))")
-          .font(AsterTypography.caption)
-          .foregroundStyle(AsterColor.foregroundSecondary)
-          .monospaced()
-      }
-      Button {
-        editTarget = machine
-      } label: {
-        Image(systemName: "pencil")
-      }
-      .buttonStyle(.borderless)
-      .help(L.text("machines.edit"))
-      Button(role: .destructive) {
-        pendingDeletion = machine
-      } label: {
-        Image(systemName: "trash")
-      }
-      .buttonStyle(.borderless)
-      .help(L.text("machines.delete"))
-    }
-    .padding(.vertical, 3)
   }
 }
 

@@ -246,5 +246,5 @@ struct AddMachineSheet: View {
 }
 
 #Preview {
-  AddMachineSheet().environment(MonitorStore())
+  AddMachineSheet().environment(MonitorStore.preview)
 }

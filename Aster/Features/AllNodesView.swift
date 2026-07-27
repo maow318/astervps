@@ -43,4 +43,4 @@ struct GroupNodesView: View {
   }
 }
 
-#Preview { AllNodesView().environment(MonitorStore()).frame(width: 1000, height: 700) }
+#Preview { AllNodesView().environment(MonitorStore.preview).frame(width: 1000, height: 700) }

@@ -30,19 +30,12 @@ enum MachineStore {
     UserDefaults.standard.set(data, forKey: machinesKey)
   }
 
-  static var isDemoMode: Bool {
-    get { UserDefaults.standard.object(forKey: demoModeKey) as? Bool ?? true }
-    set { UserDefaults.standard.set(newValue, forKey: demoModeKey) }
-  }
-
   /// Carries the single-machine era (komari.* keys) into the machine list.
   /// The old endpoint has no pinned fingerprint, so the entry surfaces as
   /// "certificate refused" until the user re-verifies it in the add flow.
   static func migrateLegacyIfNeeded() {
     let defaults = UserDefaults.standard
-    if let legacyDemo = defaults.object(forKey: legacyDemoModeKey) as? Bool {
-      isDemoMode = legacyDemo
-    }
+    defaults.removeObject(forKey: demoModeKey)
     if let endpoint = defaults.string(forKey: legacyEndpointKey), !endpoint.isEmpty {
       var machines = load()
       if !machines.contains(where: { $0.endpoint == endpoint }) {

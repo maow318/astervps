@@ -49,4 +49,4 @@ struct MainSplitView: View {
   }
 }
 
-#Preview { MainSplitView().environment(MonitorStore()) }
+#Preview { MainSplitView().environment(MonitorStore.preview) }

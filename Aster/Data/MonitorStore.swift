@@ -1,9 +1,9 @@
 import Foundation
 import Observation
 
-/// Orchestrates demo data and the fleet of configured agent machines. Each
-/// machine gets its own AgentClient; one machine failing never affects the
-/// others. Node identity: NodeInfo.id == MachineConfig.id.
+/// Orchestrates the fleet of configured agent machines. Each machine gets its
+/// own AgentClient; one machine failing never affects the others.
+/// Node identity: NodeInfo.id == MachineConfig.id.
 @Observable
 @MainActor
 final class MonitorStore {
@@ -12,16 +12,13 @@ final class MonitorStore {
   var alerts: [AlertItem] = []
   var machines: [MachineConfig] = []
   var machineStates: [UUID: ConnectionState] = [:]
-  var isDemoMode = true
   var isAddMachinePresented = false
   var historyErrorByNodeID: [UUID: String] = [:]
 
-  private let mock = MockDataSource()
   var clients: [UUID: AgentClient] = [:]
   var metaByMachine: [UUID: AgentMeta] = [:]
   let historyStore = HistoryStore()
   var refreshTask: Task<Void, Never>?
-  private var shouldRefreshHistory = false
   var isWindowActive = true
   var isPolling = false
   var lastHistorySync: [UUID: Date] = [:]
@@ -34,16 +31,11 @@ final class MonitorStore {
   func bootstrap() async {
     MachineStore.migrateLegacyIfNeeded()
     machines = MachineStore.load()
-    isDemoMode = MachineStore.isDemoMode
     #if DEBUG
       applyDebugLaunchArguments()
     #endif
-    if isDemoMode {
-      loadDemo()
-    } else {
-      activateMachines()
-      await pollAgents()
-    }
+    activateMachines()
+    await pollAgents()
     for machine in machines {
       ensureGeo(for: machine.id)
     }
@@ -67,7 +59,7 @@ final class MonitorStore {
 
   /// Aggregate indicator for the bottom bar: the worst individual state wins.
   var connectionState: ConnectionState {
-    if isDemoMode || machines.isEmpty { return .unconfigured }
+    if machines.isEmpty { return .unconfigured }
     var hasPending = false
     for machine in machines {
       switch machineStates[machine.id] ?? .connecting {
@@ -85,40 +77,6 @@ final class MonitorStore {
     machineStates[id] ?? .connecting
   }
 
-  // MARK: - Demo mode
-
-  func setDemoMode(_ enabled: Bool) {
-    MachineStore.isDemoMode = enabled
-    isDemoMode = enabled
-    if enabled {
-      teardownClients()
-      loadDemo()
-    } else {
-      activateMachines()
-      Task { await pollAgents() }
-    }
-  }
-
-  private func loadDemo() {
-    nodes = mock.loadNodes()
-    groups = mock.loadGroups()
-    alerts = mock.loadAlerts()
-  }
-
-  func refreshDemo() {
-    let includeHistory = shouldRefreshHistory
-    let refreshed = mock.refresh(nodes: nodes, includeHistory: includeHistory)
-    for node in refreshed {
-      guard let index = nodes.firstIndex(where: { $0.id == node.id }) else { continue }
-      nodes[index].metrics = node.metrics
-      nodes[index].info.status = node.info.status
-      if includeHistory {
-        nodes[index].history = node.history
-      }
-    }
-    shouldRefreshHistory.toggle()
-  }
-
   // MARK: - Machine management
 
   func addMachine(name: String, endpoint: String, token: String, fingerprint: String) {
@@ -127,13 +85,9 @@ final class MonitorStore {
     try? KeychainStore.saveToken(token, for: machine.id)
     machines.append(machine)
     MachineStore.save(machines)
-    if isDemoMode {
-      setDemoMode(false)
-    } else {
-      nodes.append(placeholderNode(for: machine))
-      makeClient(for: machine)
-      Task { await pollAgents() }
-    }
+    nodes.append(placeholderNode(for: machine))
+    makeClient(for: machine)
+    Task { await pollAgents() }
     ensureGeo(for: machine.id)
   }
 
@@ -147,9 +101,7 @@ final class MonitorStore {
     machineStates[id] = nil
     metaByMachine[id] = nil
     lastHistorySync[id] = nil
-    if !isDemoMode {
-      nodes.removeAll { $0.id == id }
-    }
+    nodes.removeAll { $0.id == id }
   }
 
   func hasMachine(endpoint: String) -> Bool {
@@ -177,8 +129,6 @@ final class MonitorStore {
 
   private func activateMachines() {
     teardownClients()
-    groups = []
-    alerts = []
     nodes = machines.map { placeholderNode(for: $0) }
     for machine in machines {
       makeClient(for: machine)
@@ -221,10 +171,6 @@ final class MonitorStore {
 
   func loadHistory(for nodeID: UUID, hours: Int) async {
     guard let index = nodes.firstIndex(where: { $0.id == nodeID }) else { return }
-    if isDemoMode {
-      nodes[index].history = mock.history(for: nodes[index], hours: hours)
-      return
-    }
     detailHours[nodeID] = hours
     nodes[index].history = historyStore.metricsHistory(for: nodeID, hours: hours)
   }
@@ -266,6 +212,16 @@ final class MonitorStore {
   }
 
   #if DEBUG
+    /// SwiftUI previews only: a store pre-filled with the sample fleet, never
+    /// reachable from the shipping UI.
+    static var preview: MonitorStore {
+      let store = MonitorStore()
+      let mock = MockDataSource()
+      store.nodes = mock.loadNodes()
+      store.groups = mock.loadGroups()
+      return store
+    }
+
     /// Test hooks, passed AppKit-style (`-asterSeedEndpoint x -asterSeedToken y
     /// -asterSeedFingerprint z -asterShowAddSheet YES`) so they land in the
     /// NSArgumentDomain instead of being mistaken for documents to open —
@@ -279,8 +235,6 @@ final class MonitorStore {
         for machine in machines where machine.endpoint == endpoint {
           removeMachine(machine.id)
         }
-        MachineStore.isDemoMode = false
-        isDemoMode = false
         addMachine(name: "seed", endpoint: endpoint, token: token, fingerprint: fingerprint)
       }
       if defaults.bool(forKey: "asterShowAddSheet") {

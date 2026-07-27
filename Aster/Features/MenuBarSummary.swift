@@ -36,4 +36,4 @@ private struct MiniBar: View {
   }
 }
 
-#Preview { MenuBarSummary().environment(MonitorStore()).padding() }
+#Preview { MenuBarSummary().environment(MonitorStore.preview).padding() }

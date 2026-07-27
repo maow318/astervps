@@ -151,7 +151,8 @@ private struct DetailChart: View {
 }
 
 #Preview {
-  NavigationStack {
-    NodeDetailView(nodeID: MockDataSource().loadNodes()[0].id).environment(MonitorStore())
+  let store = MonitorStore.preview
+  return NavigationStack {
+    NodeDetailView(nodeID: store.nodes[0].id).environment(store)
   }.frame(width: 1000, height: 700)
 }

@@ -64,12 +64,6 @@ struct MachineManagementView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: AsterSpacing.md) {
-      Toggle(
-        L.text("settings.demo"),
-        isOn: Binding(
-          get: { store.isDemoMode },
-          set: { store.setDemoMode($0) }))
-
       if store.machines.isEmpty {
         VStack(spacing: AsterSpacing.sm) {
           Text(L.text("machines.empty"))
@@ -129,7 +123,7 @@ struct MachineManagementView: View {
   private func machineRow(_ machine: MachineConfig) -> some View {
     let state = store.machineState(machine.id)
     return HStack(spacing: AsterSpacing.sm) {
-      StatusDot(status: store.isDemoMode ? .offline : state.dotStatus, diameter: 8)
+      StatusDot(status: state.dotStatus, diameter: 8)
       VStack(alignment: .leading, spacing: 2) {
         Text(machine.name).font(AsterTypography.sectionTitle)
         Text(machine.endpoint)
@@ -138,7 +132,7 @@ struct MachineManagementView: View {
       }
       Spacer()
       VStack(alignment: .trailing, spacing: 2) {
-        Text(store.isDemoMode ? L.text("settings.demo") : state.localizedText)
+        Text(state.localizedText)
           .font(AsterTypography.caption)
           .lineLimit(1)
         Text("\(L.text("machines.fingerprint")) …\(machine.certFingerprint.suffix(8))")
@@ -168,6 +162,6 @@ struct MachineManagementView: View {
 
 #Preview {
   SettingsView()
-    .environment(MonitorStore())
+    .environment(MonitorStore.preview)
     .frame(width: 700, height: 480)
 }

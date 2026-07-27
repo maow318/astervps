@@ -8,10 +8,19 @@ struct OverviewView: View {
         ScrollView {
           VStack(alignment: .leading, spacing: AsterSpacing.lg) {
             HeaderStatistics()
-            if store.nodes.isEmpty && !store.isDemoMode {
-              EmptyStateView(
-                symbol: "network", title: L.text("connection.unconfigured"),
-                message: L.text("settings.connectionHint"))
+            if store.nodes.isEmpty {
+              VStack(spacing: AsterSpacing.md) {
+                EmptyStateView(
+                  symbol: "network", title: L.text("connection.unconfigured"),
+                  message: L.text("machines.empty"))
+                Button {
+                  store.isAddMachinePresented = true
+                } label: {
+                  Label(L.text("add.title"), systemImage: "plus")
+                }
+                .buttonStyle(.borderedProminent)
+              }
+              .frame(maxWidth: .infinity)
             } else {
               NodeGrid(nodes: store.nodes)
             }
@@ -108,4 +117,4 @@ struct StatusBar: View {
   }
 }
 
-#Preview { OverviewView().environment(MonitorStore()).frame(width: 1100, height: 750) }
+#Preview { OverviewView().environment(MonitorStore.preview).frame(width: 1100, height: 750) }

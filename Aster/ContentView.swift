@@ -12,4 +12,4 @@ struct ContentView: View {
   var body: some View { MainSplitView().environment(store) }
 }
 
-#Preview { ContentView().environment(MonitorStore()) }
+#Preview { ContentView().environment(MonitorStore.preview) }

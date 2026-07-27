@@ -23,4 +23,4 @@ struct AlertsView: View {
   }
 }
 
-#Preview { AlertsView().environment(MonitorStore()).frame(width: 600, height: 400) }
+#Preview { AlertsView().environment(MonitorStore.preview).frame(width: 600, height: 400) }

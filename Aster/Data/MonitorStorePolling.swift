@@ -7,16 +7,10 @@ extension MonitorStore {
     refreshTask = Task { [weak self] in
       guard let self else { return }
       while !Task.isCancelled {
-        let demo = self.isDemoMode
-        let active = self.isWindowActive
-        let seconds: Double = demo ? (active ? 5 : 30) : (active ? 2 : 30)
+        let seconds: Double = self.isWindowActive ? 2 : 30
         try? await Task.sleep(for: .seconds(seconds))
         guard !Task.isCancelled else { return }
-        if self.isDemoMode {
-          self.refreshDemo()
-        } else {
-          await self.pollAgents()
-        }
+        await self.pollAgents()
       }
     }
   }

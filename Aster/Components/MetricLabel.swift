@@ -9,6 +9,7 @@ struct MetricLabel: View {
     HStack(spacing: 4) {
       Image(systemName: symbol).font(.caption).foregroundStyle(tint)
       Text(value).font(AsterTypography.metric).contentTransition(.numericText())
+        .lineLimit(1).minimumScaleFactor(0.7)
       Text(unit).font(AsterTypography.caption).foregroundStyle(AsterColor.foregroundSecondary)
     }.accessibilityElement(children: .combine)
   }

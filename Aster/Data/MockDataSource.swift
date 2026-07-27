@@ -119,22 +119,28 @@ import Foundation
     []
   }
 
+  private lazy var baselineByName = Dictionary(
+    uniqueKeysWithValues: blueprints.map { ($0.name, $0) })
+
   func refresh(nodes: [NodeSnapshot], includeHistory: Bool) -> [NodeSnapshot] {
     nodes.map { snapshot in
       var copy = snapshot
-      guard copy.info.status != .offline else { return copy }
-      func jitter(_ value: Double, by amount: Double, range: ClosedRange<Double> = 0...100)
-        -> Double
-      { min(max(value + Double.random(in: -amount...amount), range.lowerBound), range.upperBound) }
-      copy.metrics.cpuUsage = jitter(copy.metrics.cpuUsage, by: 5)
-      copy.metrics.memoryUsage = jitter(copy.metrics.memoryUsage, by: 2)
-      copy.metrics.diskUsage = jitter(copy.metrics.diskUsage, by: 0.4)
-      copy.metrics.downloadBytesPerSecond = max(
-        0, copy.metrics.downloadBytesPerSecond * Double.random(in: 0.8...1.25))
-      copy.metrics.uploadBytesPerSecond = max(
-        0, copy.metrics.uploadBytesPerSecond * Double.random(in: 0.8...1.25))
-      copy.metrics.loadAverage = max(
-        0, copy.metrics.loadAverage + Double.random(in: -0.3...0.3))
+      guard copy.info.status != .offline, let base = baselineByName[copy.info.name] else {
+        return copy
+      }
+      // Jitter around the blueprint baseline (mean reversion). A random walk
+      // on the current value drifts without bound when left running — an
+      // overnight session once inflated rates into the exa-scale.
+      func around(_ value: Double, spread: Double, range: ClosedRange<Double> = 0...100) -> Double
+      {
+        min(max(value + Double.random(in: -spread...spread), range.lowerBound), range.upperBound)
+      }
+      copy.metrics.cpuUsage = around(base.cpu, spread: 6)
+      copy.metrics.memoryUsage = around(base.memory, spread: 3)
+      copy.metrics.diskUsage = around(base.disk, spread: 0.5)
+      copy.metrics.downloadBytesPerSecond = base.downBps * Double.random(in: 0.75...1.3)
+      copy.metrics.uploadBytesPerSecond = base.upBps * Double.random(in: 0.75...1.3)
+      copy.metrics.loadAverage = max(0, base.load + Double.random(in: -0.4...0.4))
       if includeHistory {
         copy.history.cpu = append(copy.metrics.cpuUsage, to: copy.history.cpu)
         copy.history.memory = append(copy.metrics.memoryUsage, to: copy.history.memory)

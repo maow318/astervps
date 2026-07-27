@@ -52,39 +52,42 @@ struct NodesDisplay: View {
   }
 
   private var compactList: some View {
-    LazyVStack(spacing: 6) {
+    LazyVGrid(
+      columns: [GridItem(.adaptive(minimum: 290, maximum: 360), spacing: AsterSpacing.sm)],
+      spacing: AsterSpacing.sm
+    ) {
       ForEach(nodes) { node in
-        NodeCompactRow(node: node)
+        NodeCompactCard(node: node)
       }
     }
   }
 }
 
-/// One-line summary row: identity on the left, key percentages and network
-/// rates on the right.
-struct NodeCompactRow: View {
+/// Komari-style dense card: identity, billing chips, one icon-stat line,
+/// rates + cumulative traffic, expiry + online duration.
+struct NodeCompactCard: View {
   let node: NodeSnapshot
 
   var body: some View {
     NavigationLink(value: node.id) {
       GlassCard {
-        HStack(spacing: AsterSpacing.sm) {
-          StatusDot(status: node.info.status, diameter: 8)
-          Text(node.info.flag)
-          Text(node.info.name)
-            .font(AsterTypography.sectionTitle)
-            .foregroundStyle(AsterColor.foregroundPrimary)
-            .lineLimit(1)
-          OSBadge(osID: node.info.operatingSystem, size: 12)
-          Text(node.info.region)
-            .font(AsterTypography.caption)
-            .foregroundStyle(AsterColor.foregroundSecondary)
-            .lineLimit(1)
-          Spacer()
-          percent("cpu", node.metrics.cpuUsage, AsterColor.chartPalette[0])
-          percent("memorychip", node.metrics.memoryUsage, AsterColor.chartPalette[1])
-          percent("internaldrive", node.metrics.diskUsage, AsterColor.chartPalette[3])
-          rates
+        VStack(alignment: .leading, spacing: 7) {
+          HStack(spacing: 5) {
+            StatusDot(status: node.info.status, diameter: 7)
+            Text(node.info.flag)
+            Text(node.info.name)
+              .font(AsterTypography.sectionTitle)
+              .foregroundStyle(AsterColor.foregroundPrimary)
+              .lineLimit(1)
+            OSBadge(osID: node.info.operatingSystem, size: 11)
+            Spacer()
+          }
+          if node.info.billingPrice != nil || node.info.billingExpiresAt != nil {
+            billingChips
+          }
+          statLine
+          networkLine
+          footerLine
         }
       }
       .contentShape(Rectangle())
@@ -92,23 +95,95 @@ struct NodeCompactRow: View {
     .buttonStyle(.plain)
   }
 
-  private func percent(_ symbol: String, _ value: Double, _ tint: Color) -> some View {
-    HStack(spacing: 3) {
-      Image(systemName: symbol).font(.caption).foregroundStyle(tint)
-      Text("\(Int(value))%")
-        .font(AsterTypography.label.monospacedDigit())
-        .frame(width: 36, alignment: .trailing)
+  private var billingChips: some View {
+    HStack(spacing: 6) {
+      if let price = node.info.billingPrice {
+        chip(price, tint: AsterColor.warning)
+      }
+      if let expiry = node.info.billingExpiresAt {
+        let days = AsterFormat.daysLeft(until: expiry)
+        chip(
+          String(format: L.text("billing.daysLeft"), days),
+          tint: days < 14 ? AsterColor.offline : AsterColor.online)
+      }
     }
   }
 
-  private var rates: some View {
+  private func chip(_ text: String, tint: Color) -> some View {
+    Text(text)
+      .font(AsterTypography.caption)
+      .foregroundStyle(tint)
+      .padding(.horizontal, 6)
+      .padding(.vertical, 2)
+      .background(tint.opacity(0.13), in: RoundedRectangle(cornerRadius: 5))
+  }
+
+  private var statLine: some View {
+    HStack(spacing: AsterSpacing.sm) {
+      iconStat("cpu", "\(Int(node.metrics.cpuUsage))%", AsterColor.chartPalette[0])
+      iconStat("memorychip", "\(Int(node.metrics.memoryUsage))%", AsterColor.chartPalette[1])
+      iconStat("internaldrive", "\(Int(node.metrics.diskUsage))%", AsterColor.chartPalette[3])
+      iconStat(
+        "bolt.fill",
+        String(
+          format: "%.2f | %.2f | %.2f", node.metrics.loadAverage, node.metrics.load5,
+          node.metrics.load15),
+        AsterColor.warning)
+      Spacer(minLength: 0)
+    }
+  }
+
+  private var networkLine: some View {
     let up = AsterFormat.rate(node.metrics.uploadBytesPerSecond)
     let down = AsterFormat.rate(node.metrics.downloadBytesPerSecond)
-    return Text("↑\(up.value) \(up.unit)  ↓\(down.value) \(down.unit)")
-      .font(AsterTypography.caption.monospacedDigit())
-      .foregroundStyle(AsterColor.foregroundSecondary)
-      .frame(width: 170, alignment: .trailing)
-      .lineLimit(1)
+    return HStack(alignment: .top, spacing: AsterSpacing.md) {
+      HStack(spacing: 4) {
+        Image(systemName: "speedometer")
+          .font(.caption)
+          .foregroundStyle(AsterColor.chartPalette[2])
+        VStack(alignment: .leading, spacing: 1) {
+          Text("↑ \(up.value) \(up.unit)")
+          Text("↓ \(down.value) \(down.unit)")
+        }
+      }
+      HStack(spacing: 4) {
+        Image(systemName: "arrow.up.arrow.down")
+          .font(.caption)
+          .foregroundStyle(AsterColor.chartPalette[4])
+        VStack(alignment: .leading, spacing: 1) {
+          Text("↑ \(AsterFormat.bytes(node.metrics.totalUploadBytes))")
+          Text("↓ \(AsterFormat.bytes(node.metrics.totalDownloadBytes))")
+        }
+      }
+      Spacer(minLength: 0)
+    }
+    .font(AsterTypography.caption.monospacedDigit())
+    .foregroundStyle(AsterColor.foregroundPrimary.opacity(0.85))
+  }
+
+  private var footerLine: some View {
+    HStack {
+      if let expiry = node.info.billingExpiresAt {
+        Text(
+          "\(L.text("billing.expiryShort")): \(expiry.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits)))"
+        )
+      }
+      Spacer()
+      Text(AsterFormat.uptime(node.metrics.uptime))
+    }
+    .font(AsterTypography.caption)
+    .foregroundStyle(AsterColor.foregroundSecondary)
+    .lineLimit(1)
+  }
+
+  private func iconStat(_ symbol: String, _ value: String, _ tint: Color) -> some View {
+    HStack(spacing: 3) {
+      Image(systemName: symbol).font(.caption).foregroundStyle(tint)
+      Text(value)
+        .font(AsterTypography.caption.monospacedDigit())
+        .foregroundStyle(AsterColor.foregroundPrimary)
+        .lineLimit(1)
+    }
   }
 }
 

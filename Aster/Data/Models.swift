@@ -19,6 +19,10 @@ struct NodeInfo: Identifiable, Codable, Hashable {
   /// CPU model / core count, e.g. "Apple M4 · 10核". Demo data ships varied
   /// hardware; agent nodes fill this from /v1/meta.
   var hardware: String = ""
+  /// Optional user-entered billing note ("$17.93/年") and expiry date,
+  /// mirrored from MachineConfig for display.
+  var billingPrice: String? = nil
+  var billingExpiresAt: Date? = nil
   var memoryTotalBytes: Double = 0
   var swapTotalBytes: Double = 0
   var diskTotalBytes: Double = 0
@@ -26,7 +30,8 @@ struct NodeInfo: Identifiable, Codable, Hashable {
   var serverID: String? = nil
 }
 
-/// Latest node payload; fields mirror Komari's real-time CPU, memory, storage, network and process concepts.
+/// Latest node metrics. Percentages are 0-100; byte quantities are raw bytes
+/// so views can format adaptively (agent wire format keeps used/total pairs).
 struct NodeMetrics: Codable, Hashable {
   var cpuUsage, memoryUsage, swapUsage, diskUsage: Double
   var downloadBytesPerSecond, uploadBytesPerSecond: Double
@@ -34,6 +39,16 @@ struct NodeMetrics: Codable, Hashable {
   var loadAverage: Double
   var uptime: TimeInterval
   var diskReadBytesPerSecond, diskWriteBytesPerSecond: Double
+  var memoryUsedBytes: Double = 0
+  var memoryTotalBytes: Double = 0
+  var swapUsedBytes: Double = 0
+  var swapTotalBytes: Double = 0
+  var diskUsedBytes: Double = 0
+  var diskTotalBytes: Double = 0
+  var totalUploadBytes: Double = 0
+  var totalDownloadBytes: Double = 0
+  var load5: Double = 0
+  var load15: Double = 0
 }
 
 struct MetricSample: Identifiable, Codable, Hashable {

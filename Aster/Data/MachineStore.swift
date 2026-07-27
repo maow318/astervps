@@ -12,6 +12,9 @@ struct MachineConfig: Identifiable, Codable, Hashable {
   /// Cached geo lookup (see GeoLookup); nil until the first resolution.
   var countryCode: String? = nil
   var city: String? = nil
+  /// User-entered billing note and expiry, shown on cards and in the table.
+  var price: String? = nil
+  var expiresAt: Date? = nil
 }
 
 enum MachineStore {

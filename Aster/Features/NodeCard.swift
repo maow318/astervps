@@ -79,6 +79,12 @@ struct NodeCard: View {
       Text(AsterFormat.uptime(node.metrics.uptime))
         .font(AsterTypography.caption)
         .foregroundStyle(AsterColor.foregroundSecondary)
+      if let expiry = node.info.billingExpiresAt {
+        let days = AsterFormat.daysLeft(until: expiry)
+        Text(String(format: L.text("billing.daysLeft"), days))
+          .font(AsterTypography.caption)
+          .foregroundStyle(days < 14 ? AsterColor.offline : AsterColor.warning)
+      }
       Spacer()
       ForEach(node.info.tags.prefix(2), id: \.self) { TagChip(text: $0) }
     }

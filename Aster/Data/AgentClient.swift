@@ -144,7 +144,17 @@ struct AgentMetrics: Decodable {
       loadAverage: load.load1,
       uptime: uptime,
       diskReadBytesPerSecond: 0,
-      diskWriteBytesPerSecond: 0)
+      diskWriteBytesPerSecond: 0,
+      memoryUsedBytes: memory.used,
+      memoryTotalBytes: memory.total,
+      swapUsedBytes: swap.used,
+      swapTotalBytes: swap.total,
+      diskUsedBytes: disk.used,
+      diskTotalBytes: disk.total,
+      totalUploadBytes: network.totalUp,
+      totalDownloadBytes: network.totalDown,
+      load5: load.load5,
+      load15: load.load15)
   }
 }
 

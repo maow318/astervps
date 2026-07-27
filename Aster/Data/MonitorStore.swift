@@ -108,13 +108,17 @@ final class MonitorStore {
     machines.contains { $0.endpoint == endpoint }
   }
 
-  func renameMachine(_ id: UUID, to name: String) {
+  func updateMachine(_ id: UUID, name: String, price: String?, expiresAt: Date?) {
     let trimmed = name.trimmingCharacters(in: .whitespaces)
     guard !trimmed.isEmpty, let index = machines.firstIndex(where: { $0.id == id }) else { return }
     machines[index].name = trimmed
+    machines[index].price = price?.isEmpty == true ? nil : price
+    machines[index].expiresAt = expiresAt
     MachineStore.save(machines)
     if let nodeIndex = nodes.firstIndex(where: { $0.id == id }) {
       nodes[nodeIndex].info.name = trimmed
+      nodes[nodeIndex].info.billingPrice = machines[index].price
+      nodes[nodeIndex].info.billingExpiresAt = expiresAt
     }
   }
 
@@ -161,7 +165,8 @@ final class MonitorStore {
     let info = NodeInfo(
       id: machine.id, name: machine.name, region: machine.city ?? "",
       flag: machine.countryCode.map(GeoLookup.flag) ?? "", operatingSystem: "",
-      status: .offline, tags: [], groupID: nil, createdAt: machine.createdAt)
+      status: .offline, tags: [], groupID: nil, createdAt: machine.createdAt,
+      billingPrice: machine.price, billingExpiresAt: machine.expiresAt)
     return NodeSnapshot(
       info: info, metrics: .empty,
       history: historyStore.metricsHistory(for: machine.id, hours: 1))

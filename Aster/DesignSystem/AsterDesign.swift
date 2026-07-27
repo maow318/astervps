@@ -62,6 +62,26 @@ enum AsterFormat {
     }
   }
 
+  /// Adaptive byte quantity: "971.2 MB", "29.01 GB", "2.03 TB".
+  static func bytes(_ value: Double) -> String {
+    switch value {
+    case ..<1_000:
+      String(format: "%.0f B", value)
+    case ..<1_000_000:
+      String(format: "%.1f KB", value / 1_000)
+    case ..<1_000_000_000:
+      String(format: "%.1f MB", value / 1_000_000)
+    case ..<1_000_000_000_000:
+      String(format: "%.2f GB", value / 1_000_000_000)
+    default:
+      String(format: "%.2f TB", value / 1_000_000_000_000)
+    }
+  }
+
+  static func daysLeft(until date: Date) -> Int {
+    max(0, Calendar.current.dateComponents([.day], from: .now, to: date).day ?? 0)
+  }
+
   static func uptime(_ seconds: TimeInterval) -> String {
     let duration = Duration.seconds(seconds).formatted(
       .units(allowed: [.days, .hours, .minutes], width: .abbreviated, maximumUnitCount: 2))

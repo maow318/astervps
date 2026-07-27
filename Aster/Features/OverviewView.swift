@@ -22,7 +22,7 @@ struct OverviewView: View {
               }
               .frame(maxWidth: .infinity)
             } else {
-              NodeGrid(nodes: store.nodes)
+              NodesDisplay(nodes: store.nodes)
             }
           }.padding(AsterSpacing.lg)
         }

@@ -37,15 +37,33 @@ struct NodeDetailView: View {
                 (L.text("metric.write"), node.history.diskWrite, AsterColor.chartPalette[3]),
               ], unit: "MB/s")
             GlassCard {
-              VStack(alignment: .leading, spacing: AsterSpacing.md) {
+              VStack(alignment: .leading, spacing: AsterSpacing.sm) {
                 Text(L.text("chart.storage")).font(AsterTypography.sectionTitle)
                 ProgressBarMetric(value: node.metrics.diskUsage / 100, label: L.text("metric.disk"))
-                MetricLabel(
-                  symbol: "point.3.connected.trianglepath.dotted",
-                  value: "\(node.metrics.connectionCount)", unit: L.text("metric.connections"))
-                MetricLabel(
-                  symbol: "cpu", value: "\(node.metrics.processCount)",
-                  unit: L.text("metric.processes"))
+                detailLine(
+                  L.text("metric.disk"),
+                  "\(AsterFormat.bytes(node.metrics.diskUsedBytes)) / \(AsterFormat.bytes(node.metrics.diskTotalBytes))"
+                )
+                detailLine(
+                  L.text("metric.memory"),
+                  "\(AsterFormat.bytes(node.metrics.memoryUsedBytes)) / \(AsterFormat.bytes(node.metrics.memoryTotalBytes))"
+                )
+                detailLine(
+                  L.text("metric.swap"),
+                  node.metrics.swapTotalBytes > 0
+                    ? "\(AsterFormat.bytes(node.metrics.swapUsedBytes)) / \(AsterFormat.bytes(node.metrics.swapTotalBytes))"
+                    : L.text("swap.off"))
+                detailLine(
+                  L.text("table.traffic"),
+                  "↑ \(AsterFormat.bytes(node.metrics.totalUploadBytes))   ↓ \(AsterFormat.bytes(node.metrics.totalDownloadBytes))"
+                )
+                detailLine(
+                  L.text("table.load"),
+                  String(
+                    format: "%.2f / %.2f / %.2f", node.metrics.loadAverage, node.metrics.load5,
+                    node.metrics.load15))
+                detailLine(L.text("metric.connections"), "\(node.metrics.connectionCount)")
+                detailLine(L.text("metric.processes"), "\(node.metrics.processCount)")
               }
             }
           }
@@ -77,6 +95,18 @@ struct NodeDetailView: View {
         message: L.text("node.missing.message"))
     }
   }
+  private func detailLine(_ title: String, _ value: String) -> some View {
+    HStack {
+      Text(title)
+        .font(AsterTypography.caption)
+        .foregroundStyle(AsterColor.foregroundSecondary)
+      Spacer()
+      Text(value)
+        .font(AsterTypography.caption.monospacedDigit())
+        .foregroundStyle(AsterColor.foregroundPrimary)
+    }
+  }
+
   private func detailHeader(_ node: NodeSnapshot) -> some View {
     HStack(alignment: .top) {
       VStack(alignment: .leading, spacing: 7) {

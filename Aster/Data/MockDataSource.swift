@@ -91,20 +91,41 @@ import Foundation
       uptimeDays: 8.5, load: 7.9, group: 1),
   ]
 
+  /// Capacities per node (GB): memory, swap (0 = OFF), disk.
+  private let capacityByName: [String: (mem: Double, swap: Double, disk: Double)] = [
+    "aurora-01": (64, 8, 960), "harbor-hkg": (32, 4, 500), "studio-cup": (192, 0, 4000),
+    "nimbus-sgp": (8, 1, 160), "outback-syd": (32, 2, 1000), "dune-dxb": (64, 0, 2000),
+    "helios-fra": (48, 8, 1920), "bastion-lax": (64, 16, 480), "glacier-hel": (32, 0, 512),
+    "pampa-gru": (32, 4, 640), "fjord-osl": (128, 8, 960), "lotus-icn": (32, 0, 1000),
+  ]
+
   func loadNodes() -> [NodeSnapshot] {
     blueprints.map { blueprint in
       let info = NodeInfo(
         id: UUID(), name: blueprint.name, region: blueprint.city, flag: blueprint.flag,
         operatingSystem: blueprint.os, status: blueprint.status, tags: blueprint.tags,
         groupID: groups[blueprint.group].id, createdAt: .now, hardware: blueprint.hardware)
+      let capacity = capacityByName[blueprint.name] ?? (16, 0, 320)
+      let gigabyte = 1_000_000_000.0
+      let swapUsage = capacity.swap > 0 ? max(0, blueprint.memory - 62) : 0
+      let uptimeSeconds = blueprint.uptimeDays * 86_400
       let metrics = NodeMetrics(
         cpuUsage: blueprint.cpu, memoryUsage: blueprint.memory,
-        swapUsage: max(0, blueprint.memory - 62), diskUsage: blueprint.disk,
+        swapUsage: swapUsage, diskUsage: blueprint.disk,
         downloadBytesPerSecond: blueprint.downBps, uploadBytesPerSecond: blueprint.upBps,
         connectionCount: Int(blueprint.load * 34) + 8, processCount: Int(blueprint.load * 40) + 70,
-        loadAverage: blueprint.load, uptime: blueprint.uptimeDays * 86_400,
+        loadAverage: blueprint.load, uptime: uptimeSeconds,
         diskReadBytesPerSecond: blueprint.downBps * 0.3,
-        diskWriteBytesPerSecond: blueprint.upBps * 0.5)
+        diskWriteBytesPerSecond: blueprint.upBps * 0.5,
+        memoryUsedBytes: capacity.mem * gigabyte * blueprint.memory / 100,
+        memoryTotalBytes: capacity.mem * gigabyte,
+        swapUsedBytes: capacity.swap * gigabyte * swapUsage / 100,
+        swapTotalBytes: capacity.swap * gigabyte,
+        diskUsedBytes: capacity.disk * gigabyte * blueprint.disk / 100,
+        diskTotalBytes: capacity.disk * gigabyte,
+        totalUploadBytes: blueprint.upBps * uptimeSeconds * 0.4,
+        totalDownloadBytes: blueprint.downBps * uptimeSeconds * 0.4,
+        load5: blueprint.load * 0.9, load15: blueprint.load * 0.75)
       return NodeSnapshot(
         info: info, metrics: metrics,
         history: history(cpu: blueprint.cpu, downBps: blueprint.downBps))

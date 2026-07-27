@@ -8,8 +8,8 @@ enum NodeDisplayMode: String, CaseIterable, Identifiable {
   var icon: String {
     switch self {
     case .grid: "square.grid.2x2"
-    case .table: "tablecells"
-    case .compact: "list.bullet"
+    case .table: "list.bullet"
+    case .compact: "tablecells"
     }
   }
 

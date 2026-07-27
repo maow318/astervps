@@ -49,6 +49,8 @@ extension MonitorStore {
     nodes[nodeIndex].info.name = machine.name
     nodes[nodeIndex].info.tags = machine.tagList
     nodes[nodeIndex].info.groupID = groupID(for: machine.group)
+    nodes[nodeIndex].info.flag = machine.effectiveFlag
+    nodes[nodeIndex].info.countryCode = machine.effectiveCountryCode
     nodes[nodeIndex].info.billingPrice = machine.displayPrice
     nodes[nodeIndex].info.billingExpiresAt = machine.expiresAt
   }
@@ -133,9 +135,9 @@ extension MonitorStore {
   private func placeholderNode(for machine: MachineConfig) -> NodeSnapshot {
     let info = NodeInfo(
       id: machine.id, name: machine.name, region: machine.city ?? "",
-      flag: machine.countryCode.map(GeoLookup.flag) ?? "", operatingSystem: "",
+      flag: machine.effectiveFlag, operatingSystem: "",
       status: .offline, tags: machine.tagList, groupID: groupID(for: machine.group),
-      createdAt: machine.createdAt,
+      createdAt: machine.createdAt, countryCode: machine.effectiveCountryCode,
       billingPrice: machine.displayPrice, billingExpiresAt: machine.expiresAt)
     return NodeSnapshot(
       info: info, metrics: .empty,
@@ -158,7 +160,8 @@ extension MonitorStore {
       machines[index].city = info.city
       MachineStore.save(machines)
       if let nodeIndex = nodes.firstIndex(where: { $0.id == machineID }) {
-        nodes[nodeIndex].info.flag = info.flag
+        nodes[nodeIndex].info.flag = machines[index].effectiveFlag
+        nodes[nodeIndex].info.countryCode = machines[index].effectiveCountryCode
         nodes[nodeIndex].info.region = subtitle(machineID: machineID)
       }
     }

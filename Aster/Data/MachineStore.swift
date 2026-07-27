@@ -12,6 +12,9 @@ struct MachineConfig: Identifiable, Codable, Hashable {
   /// Cached geo lookup (see GeoLookup); nil until the first resolution.
   var countryCode: String? = nil
   var city: String? = nil
+  /// Manual correction: geo databases misplace hosts often enough that the
+  /// user needs the last word. Wins over the detected code when set.
+  var countryOverride: String? = nil
   /// User-entered billing note and expiry, shown on cards and in the table.
   /// `price` is the legacy free-text form; the structured fields below win
   /// when set. All additions stay optional so stored JSON keeps decoding.
@@ -26,6 +29,15 @@ struct MachineConfig: Identifiable, Codable, Hashable {
   var group: String? = nil
   var note: String? = nil
   var isHidden: Bool? = nil
+
+  var effectiveCountryCode: String? {
+    let code = countryOverride ?? countryCode
+    return code?.isEmpty == false ? code : nil
+  }
+
+  var effectiveFlag: String {
+    effectiveCountryCode.map(GeoLookup.flag) ?? ""
+  }
 
   var tagList: [String] {
     (tags ?? "").split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }

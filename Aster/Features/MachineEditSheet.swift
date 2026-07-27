@@ -16,6 +16,7 @@ struct MachineEditSheet: View {
   @State private var group: String
   @State private var note: String
   @State private var isHidden: Bool
+  @State private var countryOverride: String
   @State private var currency: String
   @State private var amountText: String
   @State private var cycle: String
@@ -32,6 +33,7 @@ struct MachineEditSheet: View {
     _group = State(initialValue: machine.group ?? "")
     _note = State(initialValue: machine.note ?? "")
     _isHidden = State(initialValue: machine.hidden)
+    _countryOverride = State(initialValue: machine.countryOverride ?? "")
     _currency = State(initialValue: machine.currency ?? "$")
     _amountText = State(
       initialValue: machine.priceAmount.map { String(format: "%.2f", $0) } ?? "")
@@ -92,6 +94,13 @@ struct MachineEditSheet: View {
             Image(systemName: "doc.on.doc")
           }
           .buttonStyle(.borderless)
+        }
+      }
+      Picker(L.text("edit.country"), selection: $countryOverride) {
+        Text(autoDetectedLabel).tag("")
+        Divider()
+        ForEach(CountryNaming.pickerRegions, id: \.code) { region in
+          Text("\(GeoLookup.flag(countryCode: region.code)) \(region.name)").tag(region.code)
         }
       }
       TextField(L.text("edit.tags"), text: $tags, prompt: Text(verbatim: "prod;api"))
@@ -168,6 +177,13 @@ struct MachineEditSheet: View {
     }
   }
 
+  /// Shows what the geo lookup found so the user can tell whether the
+  /// override is actually needed.
+  private var autoDetectedLabel: String {
+    guard let detected = machine.countryCode else { return L.text("edit.countryAuto") }
+    return "\(L.text("edit.countryAuto")) (\(GeoLookup.flag(countryCode: detected)) \(CountryNaming.name(for: detected)))"
+  }
+
   private func save() {
     var updated = machine
     updated.name = name.trimmingCharacters(in: .whitespaces)
@@ -175,6 +191,7 @@ struct MachineEditSheet: View {
     updated.group = group.trimmingCharacters(in: .whitespaces).isEmpty ? nil : group
     updated.note = note.isEmpty ? nil : note
     updated.isHidden = isHidden ? true : nil
+    updated.countryOverride = countryOverride.isEmpty ? nil : countryOverride
     updated.currency = currency
     updated.priceAmount = Double(amountText.replacingOccurrences(of: ",", with: "."))
     updated.billingCycle = cycle.isEmpty ? nil : cycle

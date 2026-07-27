@@ -21,7 +21,7 @@ enum GeoLookup {
   }
 
   /// Country code → regional-indicator emoji, e.g. "US" → 🇺🇸.
-  static func flag(countryCode: String) -> String {
+  nonisolated static func flag(countryCode: String) -> String {
     let scalars = countryCode.uppercased().unicodeScalars.compactMap { scalar in
       UnicodeScalar(127_397 + scalar.value)
     }
@@ -31,7 +31,7 @@ enum GeoLookup {
 
   /// Loopback, RFC1918 and link-local hosts have no meaningful public
   /// location, and geo services would report the resolver's address instead.
-  static func isPrivateHost(_ host: String) -> Bool {
+  nonisolated static func isPrivateHost(_ host: String) -> Bool {
     if host == "localhost" || host.hasPrefix("127.") || host.hasPrefix("10.")
       || host.hasPrefix("192.168.") || host.hasPrefix("169.254.") || host == "::1"
     {

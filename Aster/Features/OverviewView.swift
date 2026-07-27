@@ -2,12 +2,20 @@ import SwiftUI
 
 struct OverviewView: View {
   @Environment(MonitorStore.self) private var store
+  @State private var country: String?
+
+  private var filteredNodes: [NodeSnapshot] {
+    guard let country else { return store.visibleNodes }
+    return store.visibleNodes.filter { $0.info.countryCode == country }
+  }
+
   var body: some View {
     NavigationStack {
       VStack(spacing: 0) {
         ScrollView {
           VStack(alignment: .leading, spacing: AsterSpacing.lg) {
             HeaderStatistics()
+            CountryFilterBar(nodes: store.visibleNodes, selection: $country)
             if store.visibleNodes.isEmpty {
               VStack(spacing: AsterSpacing.md) {
                 EmptyStateView(
@@ -22,7 +30,7 @@ struct OverviewView: View {
               }
               .frame(maxWidth: .infinity)
             } else {
-              NodesDisplay(nodes: store.visibleNodes)
+              NodesDisplay(nodes: filteredNodes)
             }
           }.padding(AsterSpacing.lg)
         }

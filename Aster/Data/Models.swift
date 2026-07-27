@@ -19,6 +19,8 @@ struct NodeInfo: Identifiable, Codable, Hashable {
   /// CPU model / core count, e.g. "Apple M4 · 10核". Demo data ships varied
   /// hardware; agent nodes fill this from /v1/meta.
   var hardware: String = ""
+  /// ISO country code driving the flag and the country filter bar.
+  var countryCode: String? = nil
   /// Optional user-entered billing note ("$17.93/年") and expiry date,
   /// mirrored from MachineConfig for display.
   var billingPrice: String? = nil

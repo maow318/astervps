@@ -7,7 +7,7 @@ import Foundation
   private struct Blueprint {
     let name: String
     let city: String
-    let flag: String
+    let country: String
     let os: String
     let hardware: String
     let status: NodeStatus
@@ -30,62 +30,62 @@ import Foundation
 
   private let blueprints: [Blueprint] = [
     Blueprint(
-      name: "aurora-01", city: "Tokyo", flag: "🇯🇵", os: "ubuntu",
+      name: "aurora-01", city: "Tokyo", country: "JP", os: "ubuntu",
       hardware: "AMD EPYC 7502P · 32核", status: .online, tags: ["prod", "api"],
       cpu: 62, memory: 71, disk: 58, downBps: 46_000_000, upBps: 12_500_000,
       uptimeDays: 213, load: 8.4, group: 0),
     Blueprint(
-      name: "harbor-hkg", city: "Hong Kong", flag: "🇭🇰", os: "windows",
+      name: "harbor-hkg", city: "Hong Kong", country: "HK", os: "windows",
       hardware: "Xeon Silver 4310 · 24核", status: .online, tags: ["rdp"],
       cpu: 34, memory: 66, disk: 81, downBps: 830_000, upBps: 214_000,
       uptimeDays: 46, load: 2.1, group: 0),
     Blueprint(
-      name: "studio-cup", city: "Cupertino", flag: "🇺🇸", os: "darwin",
+      name: "studio-cup", city: "Cupertino", country: "US", os: "darwin",
       hardware: "Apple M2 Ultra · 24核", status: .online, tags: ["ci", "build"],
       cpu: 88, memory: 63, disk: 44, downBps: 9_200_000, upBps: 31_000_000,
       uptimeDays: 12, load: 14.2, group: 0),
     Blueprint(
-      name: "nimbus-sgp", city: "Singapore", flag: "🇸🇬", os: "alpine",
+      name: "nimbus-sgp", city: "Singapore", country: "SG", os: "alpine",
       hardware: "EPYC 9124 · 4核", status: .warning, tags: ["edge"],
       cpu: 93, memory: 89, disk: 37, downBps: 3_400_000, upBps: 1_100_000,
       uptimeDays: 158, load: 5.7, group: 1),
     Blueprint(
-      name: "outback-syd", city: "Sydney", flag: "🇦🇺", os: "debian",
+      name: "outback-syd", city: "Sydney", country: "AU", os: "debian",
       hardware: "Ryzen 9 5950X · 16核", status: .offline, tags: ["backup"],
       cpu: 0, memory: 0, disk: 72, downBps: 0, upBps: 0,
       uptimeDays: 0, load: 0, group: 1),
     Blueprint(
-      name: "dune-dxb", city: "Dubai", flag: "🇦🇪", os: "arch",
+      name: "dune-dxb", city: "Dubai", country: "AE", os: "arch",
       hardware: "i9-13900K · 24核", status: .online, tags: ["dev"],
       cpu: 7, memory: 22, disk: 19, downBps: 4_200, upBps: 1_800,
       uptimeDays: 3.2, load: 0.4, group: 1),
     Blueprint(
-      name: "helios-fra", city: "Frankfurt", flag: "🇩🇪", os: "debian",
+      name: "helios-fra", city: "Frankfurt", country: "DE", os: "debian",
       hardware: "EPYC 7443P · 24核", status: .online, tags: ["prod", "db"],
       cpu: 41, memory: 77, disk: 66, downBps: 18_700_000, upBps: 6_300_000,
       uptimeDays: 388, load: 6.8, group: 0),
     Blueprint(
-      name: "bastion-lax", city: "Los Angeles", flag: "🇺🇸", os: "centos",
+      name: "bastion-lax", city: "Los Angeles", country: "US", os: "centos",
       hardware: "Xeon E5-2680 v4 · 28核", status: .online, tags: ["legacy"],
       cpu: 18, memory: 48, disk: 91, downBps: 96_000, upBps: 42_000,
       uptimeDays: 402, load: 1.9, group: 0),
     Blueprint(
-      name: "glacier-hel", city: "Helsinki", flag: "🇫🇮", os: "fedora",
+      name: "glacier-hel", city: "Helsinki", country: "FI", os: "fedora",
       hardware: "Ryzen 7 7700 · 8核", status: .online, tags: ["staging"],
       cpu: 26, memory: 39, disk: 28, downBps: 510_000, upBps: 380_000,
       uptimeDays: 27, load: 1.1, group: 1),
     Blueprint(
-      name: "pampa-gru", city: "São Paulo", flag: "🇧🇷", os: "rocky",
+      name: "pampa-gru", city: "São Paulo", country: "BR", os: "rocky",
       hardware: "EPYC 7302 · 16核", status: .online, tags: ["worker"],
       cpu: 54, memory: 58, disk: 49, downBps: 2_100_000, upBps: 940_000,
       uptimeDays: 96, load: 4.3, group: 1),
     Blueprint(
-      name: "fjord-osl", city: "Oslo", flag: "🇳🇴", os: "almalinux",
+      name: "fjord-osl", city: "Oslo", country: "NO", os: "almalinux",
       hardware: "Xeon Gold 6338 · 32核", status: .online, tags: ["cache"],
       cpu: 12, memory: 84, disk: 23, downBps: 7_600_000, upBps: 2_800_000,
       uptimeDays: 71, load: 2.6, group: 1),
     Blueprint(
-      name: "lotus-icn", city: "Seoul", flag: "🇰🇷", os: "gentoo",
+      name: "lotus-icn", city: "Seoul", country: "KR", os: "gentoo",
       hardware: "i7-12700 · 12核", status: .online, tags: ["exp"],
       cpu: 71, memory: 52, disk: 61, downBps: 1_300_000, upBps: 260_000,
       uptimeDays: 8.5, load: 7.9, group: 1),
@@ -102,9 +102,10 @@ import Foundation
   func loadNodes() -> [NodeSnapshot] {
     blueprints.map { blueprint in
       let info = NodeInfo(
-        id: UUID(), name: blueprint.name, region: blueprint.city, flag: blueprint.flag,
+        id: UUID(), name: blueprint.name, region: blueprint.city, flag: GeoLookup.flag(countryCode: blueprint.country),
         operatingSystem: blueprint.os, status: blueprint.status, tags: blueprint.tags,
-        groupID: groups[blueprint.group].id, createdAt: .now, hardware: blueprint.hardware)
+        groupID: groups[blueprint.group].id, createdAt: .now, hardware: blueprint.hardware,
+        countryCode: blueprint.country)
       let capacity = capacityByName[blueprint.name] ?? (16, 0, 320)
       let gigabyte = 1_000_000_000.0
       let swapUsage = capacity.swap > 0 ? max(0, blueprint.memory - 62) : 0

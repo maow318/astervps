@@ -11,7 +11,10 @@ import Network
 ///
 /// Requests are issued as HTTP/1.0 with `Connection: close` so responses end
 /// at EOF and no chunked-transfer parsing is needed.
-enum AgentTransport {
+// The project defaults to MainActor isolation (SWIFT_DEFAULT_ACTOR_ISOLATION);
+// this transport and its lock-based boxes run on Network.framework queues, so
+// they opt out explicitly.
+nonisolated enum AgentTransport {
   struct Response {
     let status: Int
     let body: Data
@@ -155,7 +158,7 @@ enum AgentTransport {
   }
 }
 
-private final class FingerprintBox: @unchecked Sendable {
+private nonisolated final class FingerprintBox: @unchecked Sendable {
   private let lock = NSLock()
   private var _value: String?
 
@@ -173,7 +176,7 @@ private final class FingerprintBox: @unchecked Sendable {
   }
 }
 
-private final class CompletionGuard: @unchecked Sendable {
+private nonisolated final class CompletionGuard: @unchecked Sendable {
   private let lock = NSLock()
   private var claimed = false
 

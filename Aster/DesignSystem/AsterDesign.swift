@@ -17,6 +17,7 @@ enum AsterTypography {
   static let pageTitle = Font.system(size: 28, weight: .bold, design: .rounded)
   static let sectionTitle = Font.system(size: 17, weight: .semibold, design: .rounded)
   static let metricLarge = Font.system(size: 30, weight: .bold, design: .rounded).monospacedDigit()
+  static let metricMedium = Font.system(size: 22, weight: .bold, design: .rounded).monospacedDigit()
   static let metric = Font.system(size: 15, weight: .semibold, design: .rounded).monospacedDigit()
   static let label = Font.system(size: 12, weight: .medium)
   static let caption = Font.system(size: 11, weight: .regular)

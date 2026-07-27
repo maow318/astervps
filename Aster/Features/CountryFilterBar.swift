@@ -39,7 +39,7 @@ struct CountryFilterBar: View {
     if countries.count > 1 {
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 6) {
-          Label(L.text("filter.region"), systemImage: "globe")
+          Label(L.text("filter.region"), systemImage: "globe.asia.australia.fill")
             .font(AsterTypography.caption)
             .foregroundStyle(AsterColor.foregroundSecondary)
             .padding(.trailing, 2)

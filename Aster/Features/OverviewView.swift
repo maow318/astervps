@@ -14,7 +14,7 @@ struct OverviewView: View {
       VStack(spacing: 0) {
         ScrollView {
           VStack(alignment: .leading, spacing: AsterSpacing.lg) {
-            HeaderStatistics()
+            FleetSummaryBar(nodes: store.visibleNodes)
             CountryFilterBar(nodes: store.visibleNodes, selection: $country)
             if store.visibleNodes.isEmpty {
               VStack(spacing: AsterSpacing.md) {
@@ -41,51 +41,6 @@ struct OverviewView: View {
       .navigationDestination(for: UUID.self) { id in
         if let node = store.node(id: id) { NodeDetailView(nodeID: node.id) }
       }
-    }
-  }
-}
-
-private struct HeaderStatistics: View {
-  @Environment(MonitorStore.self) private var store
-  var body: some View {
-    // A plain HStack with equal flexible widths: ViewThatFits could never
-    // pick the horizontal variant because maxWidth-infinity cards report an
-    // unbounded ideal width.
-    HStack(spacing: AsterSpacing.sm) {
-      stat(L.text("overview.nodes"), "\(store.visibleNodes.count)", "server.rack")
-      stat(
-        L.text("overview.availability"), "\(store.onlineCount)/\(store.visibleNodes.count)",
-        "checkmark.circle")
-      stat(L.text("overview.traffic"), totalTraffic, "arrow.left.arrow.right")
-      stat(
-        L.text("overview.load"),
-        String(
-          format: "%.2f",
-          store.visibleNodes.map(\.metrics.loadAverage).reduce(0, +) / Double(max(store.visibleNodes.count, 1))),
-        "gauge.with.dots.needle.50percent")
-    }
-  }
-
-  private var totalTraffic: String {
-    let total = store.visibleNodes.reduce(0.0) {
-      $0 + $1.metrics.downloadBytesPerSecond + $1.metrics.uploadBytesPerSecond
-    }
-    let rate = AsterFormat.rate(total)
-    return "\(rate.value) \(rate.unit)"
-  }
-  private func stat(_ title: String, _ value: String, _ symbol: String) -> some View {
-    GlassCard {
-      // Single container view: GlassCard's builder would otherwise style each
-      // sibling as its own card.
-      VStack(alignment: .leading, spacing: 6) {
-        Label(title, systemImage: symbol).font(AsterTypography.caption).foregroundStyle(
-          AsterColor.foregroundSecondary)
-        Text(value).font(AsterTypography.metricLarge).foregroundStyle(AsterColor.foregroundPrimary)
-          .contentTransition(.numericText())
-          .lineLimit(1)
-          .minimumScaleFactor(0.5)
-      }
-      .frame(maxWidth: .infinity, alignment: .leading)
     }
   }
 }

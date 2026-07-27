@@ -53,7 +53,13 @@ final class MonitorStore {
   }
 
   func setWindowActive(_ isActive: Bool) {
+    let wasActive = isWindowActive
     isWindowActive = isActive
+    // Refresh immediately on refocus instead of finishing a 30s background
+    // sleep with stale data on screen.
+    if isActive && !wasActive {
+      Task { await pollAgents() }
+    }
   }
 
   func node(id: UUID) -> NodeSnapshot? {

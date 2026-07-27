@@ -82,6 +82,7 @@ extension MonitorStore {
         metaByMachine[id] = meta
         nodes[index].info.operatingSystem = meta.os
         nodes[index].info.region = subtitle(machineID: id)
+        nodes[index].info.hardware = "\(meta.cpuModel) · \(meta.cpuCores)核"
       }
       nodes[index].metrics = metrics.nodeMetrics
       nodes[index].info.status = .online

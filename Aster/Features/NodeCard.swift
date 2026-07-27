@@ -28,6 +28,12 @@ struct NodeCard: View {
         Text(node.info.region)
           .font(AsterTypography.caption)
           .foregroundStyle(AsterColor.foregroundSecondary)
+        if !node.info.hardware.isEmpty {
+          Text(node.info.hardware)
+            .font(AsterTypography.caption)
+            .foregroundStyle(AsterColor.foregroundSecondary.opacity(0.8))
+            .lineLimit(1)
+        }
       }
       Spacer()
       HStack(spacing: 6) {

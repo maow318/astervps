@@ -16,6 +16,9 @@ struct NodeInfo: Identifiable, Codable, Hashable {
   var tags: [String]
   var groupID: UUID?
   var createdAt: Date
+  /// CPU model / core count, e.g. "Apple M4 · 10核". Demo data ships varied
+  /// hardware; agent nodes fill this from /v1/meta.
+  var hardware: String = ""
   var memoryTotalBytes: Double = 0
   var swapTotalBytes: Double = 0
   var diskTotalBytes: Double = 0

@@ -646,6 +646,22 @@
         }
       }
     },
+    "billing.count": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servers"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器数量"
+          }
+        }
+      }
+    },
     "billing.currency": {
       "extractionState": "stale",
       "localizations": {
@@ -693,6 +709,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "余 %lld 天"
+          }
+        }
+      }
+    },
+    "billing.excludeFree": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exclude free"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "排除免费"
           }
         }
       }
@@ -765,6 +797,54 @@
         }
       }
     },
+    "billing.monthly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Monthly spend"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月均支出"
+          }
+        }
+      }
+    },
+    "billing.noCycle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No cycle set"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未设周期"
+          }
+        }
+      }
+    },
+    "billing.originalPrice": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "orig."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "原价"
+          }
+        }
+      }
+    },
     "billing.price": {
       "extractionState": "stale",
       "localizations": {
@@ -778,6 +858,182 @@
           "stringUnit": {
             "state": "translated",
             "value": "价格备注"
+          }
+        }
+      }
+    },
+    "billing.rates": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Exchange rates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇率"
+          }
+        }
+      }
+    },
+    "billing.ratesDefault": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Using bundled rates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用内置汇率"
+          }
+        }
+      }
+    },
+    "billing.ratesUpdated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新于"
+          }
+        }
+      }
+    },
+    "billing.refreshRates": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refresh rates"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刷新汇率"
+          }
+        }
+      }
+    },
+    "billing.remaining": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remaining value"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余总价值"
+          }
+        }
+      }
+    },
+    "billing.sort": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sort"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "排序"
+          }
+        }
+      }
+    },
+    "billing.sortPriceAsc": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Price ↑"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "价格 低→高"
+          }
+        }
+      }
+    },
+    "billing.sortPriceDesc": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Price ↓"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "价格 高→低"
+          }
+        }
+      }
+    },
+    "billing.sortValueAsc": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remaining ↑"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余价值 低→高"
+          }
+        }
+      }
+    },
+    "billing.sortValueDesc": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remaining ↓"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余价值 高→低"
+          }
+        }
+      }
+    },
+    "billing.totalValue": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total value"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总价值"
           }
         }
       }
@@ -1335,6 +1591,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "地区"
+          }
+        }
+      }
+    },
+    "globe.regions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld regions lit"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点亮 %lld 个地区"
+          }
+        }
+      }
+    },
+    "globe.totalServers": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Total servers"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "服务器总数"
           }
         }
       }
@@ -2321,6 +2609,38 @@
           "stringUnit": {
             "state": "translated",
             "value": "告警"
+          }
+        }
+      }
+    },
+    "sidebar.billing": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Billing"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资产统计"
+          }
+        }
+      }
+    },
+    "sidebar.globe": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Globe"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全球分布"
           }
         }
       }

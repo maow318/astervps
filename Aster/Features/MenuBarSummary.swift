@@ -202,6 +202,9 @@ private struct NodeRow: View {
         HStack(spacing: AsterSpacing.sm) {
           meter(L.text("metric.cpu"), node.metrics.cpuUsage, AsterColor.chartPalette[0])
           meter(L.text("metric.memory"), node.metrics.memoryUsage, AsterColor.chartPalette[1])
+          if node.metrics.swapTotalBytes > 0 {
+            meter(L.text("metric.swap"), node.metrics.swapUsage, AsterColor.chartPalette[4])
+          }
           meter(L.text("metric.disk"), node.metrics.diskUsage, AsterColor.chartPalette[2])
         }
       }
@@ -277,7 +280,7 @@ struct NodeInsightPopover: View {
     if let node = store.node(id: nodeID) {
       VStack(alignment: .leading, spacing: AsterSpacing.sm) {
         header(node)
-        gaugeGrid(node)
+        chartGrid(node)
         vitalsLine(node)
         Divider().opacity(0.4)
         processSection
@@ -308,46 +311,43 @@ struct NodeInsightPopover: View {
     return URL(string: machine.endpoint)?.host ?? machine.endpoint
   }
 
-  private func gaugeGrid(_ node: NodeSnapshot) -> some View {
+  /// Thumbnail history charts — the panel row already shows the live bars, so
+  /// hovering adds the time dimension instead of repeating them.
+  private func chartGrid(_ node: NodeSnapshot) -> some View {
     let metrics = node.metrics
+    let down = AsterFormat.rate(metrics.downloadBytesPerSecond)
+    let up = AsterFormat.rate(metrics.uploadBytesPerSecond)
     return LazyVGrid(
-      columns: [GridItem(.flexible(), spacing: AsterSpacing.sm), GridItem(.flexible())],
+      columns: [GridItem(.flexible(), spacing: AsterSpacing.xs), GridItem(.flexible())],
       spacing: AsterSpacing.xs
     ) {
-      GaugeCell(
-        label: L.text("metric.cpu"), fraction: metrics.cpuUsage / 100,
+      ChartCell(
+        label: L.text("metric.cpu"),
         value: "\(Int(metrics.cpuUsage.rounded()))%",
         detail: "\(L.text("overview.load")) \(String(format: "%.2f", metrics.loadAverage))",
-        tint: AsterColor.chartPalette[0])
-      GaugeCell(
-        label: L.text("metric.memory"), fraction: metrics.memoryUsage / 100,
+        samples: node.history.cpu, tint: AsterColor.chartPalette[0])
+      ChartCell(
+        label: L.text("metric.memory"),
         value: "\(Int(metrics.memoryUsage.rounded()))%",
         detail:
           "\(AsterFormat.bytes(metrics.memoryUsedBytes)) / \(AsterFormat.bytes(metrics.memoryTotalBytes))",
-        tint: AsterColor.chartPalette[1])
-      GaugeCell(
-        label: L.text("metric.swap"),
-        fraction: metrics.swapTotalBytes > 0 ? metrics.swapUsage / 100 : 0,
-        value: metrics.swapTotalBytes > 0 ? "\(Int(metrics.swapUsage.rounded()))%" : L.text("swap.off"),
-        detail: metrics.swapTotalBytes > 0
-          ? "\(AsterFormat.bytes(metrics.swapUsedBytes)) / \(AsterFormat.bytes(metrics.swapTotalBytes))"
-          : " ",
-        tint: AsterColor.chartPalette[4])
-      GaugeCell(
-        label: L.text("metric.disk"), fraction: metrics.diskUsage / 100,
-        value: "\(Int(metrics.diskUsage.rounded()))%",
-        detail:
-          "\(AsterFormat.bytes(metrics.diskUsedBytes)) / \(AsterFormat.bytes(metrics.diskTotalBytes))",
-        tint: AsterColor.chartPalette[2])
+        samples: node.history.memory, tint: AsterColor.chartPalette[1])
+      ChartCell(
+        label: L.text("metric.download"),
+        value: "\(down.value) \(down.unit)",
+        samples: node.history.download, tint: AsterColor.chartPalette[1])
+      ChartCell(
+        label: L.text("metric.upload"),
+        value: "\(up.value) \(up.unit)",
+        samples: node.history.upload, tint: AsterColor.chartPalette[4])
     }
   }
 
   private func vitalsLine(_ node: NodeSnapshot) -> some View {
-    let up = AsterFormat.rate(node.metrics.uploadBytesPerSecond)
-    let down = AsterFormat.rate(node.metrics.downloadBytesPerSecond)
-    return HStack(spacing: AsterSpacing.xs) {
-      Text(verbatim: "↑ \(up.value) \(up.unit)")
-      Text(verbatim: "↓ \(down.value) \(down.unit)")
+    HStack(spacing: AsterSpacing.xs) {
+      Text(
+        "\(L.text("metric.disk")) \(AsterFormat.bytes(node.metrics.diskUsedBytes)) / \(AsterFormat.bytes(node.metrics.diskTotalBytes))"
+      )
       Spacer(minLength: AsterSpacing.xxs)
       Text("\(L.text("metric.connections")) \(node.metrics.connectionCount)")
       Text("\(L.text("metric.processes")) \(node.metrics.processCount)")
@@ -401,11 +401,11 @@ struct NodeInsightPopover: View {
   }
 }
 
-private struct GaugeCell: View {
+private struct ChartCell: View {
   let label: String
-  let fraction: Double
   let value: String
-  let detail: String
+  var detail: String? = nil
+  let samples: [MetricSample]
   let tint: Color
 
   var body: some View {
@@ -417,18 +417,13 @@ private struct GaugeCell: View {
           .font(.system(size: 10.5, weight: .semibold, design: .rounded).monospacedDigit())
           .contentTransition(.numericText())
       }
-      GeometryReader { geo in
-        ZStack(alignment: .leading) {
-          Capsule().fill(tint.opacity(0.16))
-          Capsule().fill(fraction >= 0.85 ? AsterColor.warning : tint)
-            .frame(width: geo.size.width * min(max(fraction, 0), 1))
-        }
+      Sparkline(samples: samples, tint: tint, height: 26)
+      if let detail {
+        Text(detail)
+          .font(.system(size: 8.5, design: .rounded).monospacedDigit())
+          .foregroundStyle(AsterColor.foregroundSecondary.opacity(0.85))
+          .lineLimit(1)
       }
-      .frame(height: 3.5)
-      Text(detail)
-        .font(.system(size: 8.5, design: .rounded).monospacedDigit())
-        .foregroundStyle(AsterColor.foregroundSecondary.opacity(0.85))
-        .lineLimit(1)
     }
     .padding(7)
     .background(

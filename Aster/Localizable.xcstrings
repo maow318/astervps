@@ -321,13 +321,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Address (https://host:9977)"
+            "value" : "Address (https://host:9977 or https://your-domain)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "地址(https://主机:9977)"
+            "value" : "地址(https://IP:9977 或 https://域名)"
           }
         }
       }

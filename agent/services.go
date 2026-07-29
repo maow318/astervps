@@ -43,6 +43,11 @@ type Website struct {
 	Server string `json:"server"` // nginx / caddy / apache
 	Port   int    `json:"port"`
 	TLS    bool   `json:"tls"`
+	// Local health probe (agent >= 0.3.0). Status 0 means the probe failed.
+	Status       int   `json:"status"`
+	LatencyMS    int64 `json:"latency_ms"`
+	OK           bool  `json:"ok"`
+	CertDaysLeft *int  `json:"cert_days_left,omitempty"`
 }
 
 type ContainerPort struct {
@@ -164,7 +169,7 @@ func (s *serviceCollector) collect() {
 		CollectedAt: time.Now().Unix(),
 		Restricted:  restricted,
 		Listeners:   listeners,
-		Websites:    collectWebsites(),
+		Websites:    probeWebsites(collectWebsites()),
 		Docker:      docker,
 		Systemd:     collectSystemd(),
 		Packages:    collectPackages(),

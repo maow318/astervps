@@ -2,6 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"testing"
 )
@@ -220,4 +223,42 @@ func boolString(value bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+func TestProbeOne(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Host != "probe.example.com" {
+			t.Errorf("expected vhost Host header, got %q", r.Host)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	serverURL, _ := url.Parse(server.URL)
+	port, _ := strconv.Atoi(serverURL.Port())
+
+	site := Website{Domain: "probe.example.com", Server: "nginx", Port: port, TLS: true}
+	probeOne(&site, serverURL.Hostname())
+	if site.Status != 200 || !site.OK {
+		t.Fatalf("probe failed: %+v", site)
+	}
+	if site.LatencyMS < 0 {
+		t.Fatalf("bad latency: %+v", site)
+	}
+	if site.CertDaysLeft == nil || *site.CertDaysLeft < 1 {
+		t.Fatalf("expected future cert expiry, got %+v", site.CertDaysLeft)
+	}
+
+	dead := Website{Domain: "probe.example.com", Server: "nginx", Port: 1, TLS: false}
+	probeOne(&dead, "127.0.0.1")
+	if dead.OK || dead.Status != 0 {
+		t.Fatalf("dead port must fail: %+v", dead)
+	}
+}
+
+func TestStatusHealthy(t *testing.T) {
+	for status, expected := range map[int]bool{200: true, 301: true, 404: true, 500: false, 502: false, 0: false} {
+		if statusHealthy(status) != expected {
+			t.Fatalf("statusHealthy(%d) != %v", status, expected)
+		}
+	}
 }

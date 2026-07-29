@@ -26,7 +26,8 @@ Refreshed every `--services-interval` seconds (default 60) by a dedicated collec
 {"collected_at":1710000000,"restricted":false,
  "listeners":[{"port":443,"protocol":"tcp","address":"0.0.0.0","scope":"public","pid":612,
                "process":"nginx","cmdline":"nginx: master process","user":"root","container":"web"}],
- "websites":[{"domain":"blog.example.com","server":"nginx","port":443,"tls":true}],
+ "websites":[{"domain":"blog.example.com","server":"nginx","port":443,"tls":true,
+              "status":200,"latency_ms":12,"ok":true,"cert_days_left":71}],
  "docker":{"available":true,"version":"27.1.1",
            "swarm":{"active":true,"role":"manager","nodes":3,
                     "services":[{"name":"web","replicas":"2"}]},
@@ -38,6 +39,8 @@ Refreshed every `--services-interval` seconds (default 60) by a dedicated collec
             "failed":["foo.service"]},
  "packages":[{"name":"docker","version":"27.1.1","source":"bin"}]}
 ```
+
+Website probes (agent >= 0.3.0): each detected vhost gets one loopback request with proper Host/SNI. `status` 0 means unreachable; `ok` is true for any deliberate answer below 500; `cert_days_left` is present for TLS sites only. Probes never leave the machine.
 
 Degradation semantics: `scope` is `local` for loopback binds and `public` otherwise; `restricted` is true when most listener PIDs could not be resolved (agent running without root). `docker.available=false` carries a `reason` (`socket not found` / `permission denied` / `unreachable`). `systemd` is omitted entirely on hosts without systemctl (e.g. macOS). `websites` is empty when no supported web server (nginx / Caddy admin API / Apache) is detected. `mem_limit` 0 means "no limit". The agent is strictly read-only: no endpoint executes anything derived from request input; all inspection commands are fixed argv with hard timeouts.
 

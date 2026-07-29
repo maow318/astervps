@@ -2168,6 +2168,40 @@
         }
       }
     },
+    "machines.copyStatus" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy health-check command"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制体检命令"
+          }
+        }
+      }
+    },
+    "machines.copyUninstall" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy uninstall command"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制卸载命令"
+          }
+        }
+      }
+    },
     "machines.delete" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2198,6 +2232,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "删除这台机器?其凭据与本地历史数据将一并清除。"
+          }
+        }
+      }
+    },
+    "machines.tools" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tools"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工具"
           }
         }
       }

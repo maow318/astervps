@@ -191,6 +191,20 @@ private struct MachineRow: View {
 
   private var actions: some View {
     HStack(spacing: 4) {
+      Menu {
+        if let command = AgentDistribution.statusCommand {
+          Button(L.text("machines.copyStatus")) { copy(command) }
+        }
+        if let command = AgentDistribution.uninstallCommand {
+          Button(L.text("machines.copyUninstall")) { copy(command) }
+        }
+      } label: {
+        Image(systemName: "wrench.and.screwdriver")
+      }
+      .menuStyle(.borderlessButton)
+      .menuIndicator(.hidden)
+      .frame(width: 22)
+      .help(L.text("machines.tools"))
       Button(action: onEdit) {
         Image(systemName: "pencil")
       }
@@ -202,6 +216,11 @@ private struct MachineRow: View {
     }
     .buttonStyle(.borderless)
     .foregroundStyle(AsterColor.foregroundSecondary)
+  }
+
+  private func copy(_ value: String) {
+    NSPasteboard.general.clearContents()
+    NSPasteboard.general.setString(value, forType: .string)
   }
 }
 

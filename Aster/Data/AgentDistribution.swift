@@ -30,4 +30,10 @@ enum AgentDistribution {
   static var uninstallCommand: String? {
     script.map { "curl -fsSL \($0) | sudo sh -s -- --uninstall" }
   }
+
+  /// One command that prints a full health report of a machine — what the
+  /// user runs (or pastes to support) when something looks wrong.
+  static var statusCommand: String? {
+    script.map { "curl -fsSL \($0) | sudo sh -s -- --status" }
+  }
 }

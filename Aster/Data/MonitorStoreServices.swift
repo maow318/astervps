@@ -25,4 +25,21 @@ extension MonitorStore {
       servicesByNode[nodeID] = .failed(error.localizedDescription)
     }
   }
+
+  /// Top processes for the menu-bar hover popover, throttled to the agent's
+  /// own 10 s refresh cadence.
+  func loadTopProcesses(for nodeID: UUID) async {
+    guard let client = clients[nodeID] else { return }
+    if let fetched = processesFetchedAt[nodeID], Date.now.timeIntervalSince(fetched) < 10 {
+      return
+    }
+    processesFetchedAt[nodeID] = .now
+    do {
+      processesByNode[nodeID] = try await client.processes().processes
+    } catch AgentError.badResponse(404) {
+      processesByNode[nodeID] = [AgentProcess]?.none
+    } catch {
+      // Keep the previous snapshot on transient errors.
+    }
+  }
 }

@@ -110,6 +110,20 @@ struct AgentServices: Decodable, Hashable {
   let packages: [AgentPackage]
 }
 
+struct AgentProcess: Decodable, Hashable, Identifiable {
+  let pid: Int
+  let name: String
+  let cpuPercent: Double
+  let memBytes: Double
+  let user: String
+  var id: Int { pid }
+}
+
+struct AgentProcessList: Decodable {
+  let timestamp: Int64
+  let processes: [AgentProcess]
+}
+
 /// Per-node fetch state for the services tab.
 enum ServicesState {
   case loading

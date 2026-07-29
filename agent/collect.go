@@ -78,6 +78,15 @@ type Snapshot struct {
 	Metrics   Metrics `json:"metrics"`
 }
 
+// ProcessInfo is one entry of the top-process ranking (see /v1/processes).
+type ProcessInfo struct {
+	PID        int32   `json:"pid"`
+	Name       string  `json:"name"`
+	CPUPercent float64 `json:"cpu_percent"`
+	MemBytes   uint64  `json:"mem_bytes"`
+	User       string  `json:"user"`
+}
+
 type collector struct {
 	meta           Meta
 	historyMinutes int
@@ -94,12 +103,18 @@ type collector struct {
 	lastSlowAt   time.Time
 	connections  Connections
 	processCount int
+	// Persistent process handles so Percent(0) measures the window since the
+	// previous slow tick instead of a lifetime average.
+	procCache map[int32]*process.Process
+	topStage  []ProcessInfo // written by collectSlow (collector goroutine only)
+	top       []ProcessInfo // published copy, guarded by mu
 }
 
 func newCollector(historyMinutes int) *collector {
 	return &collector{
 		meta:           collectMeta(),
 		historyMinutes: historyMinutes,
+		procCache:      map[int32]*process.Process{},
 	}
 }
 
@@ -209,6 +224,7 @@ func (c *collector) collect() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.latest = metrics
+	c.top = c.topStage
 	if now.Sub(c.lastHistoryAt) >= historyInterval {
 		c.history = append(c.history, Snapshot{Timestamp: now.Unix(), Metrics: metrics})
 		c.lastHistoryAt = now
@@ -226,4 +242,77 @@ func (c *collector) collectSlow() {
 	pids, _ := process.Pids()
 	c.connections = Connections{TCP: len(tcpConnections), UDP: len(udpConnections)}
 	c.processCount = len(pids)
+	c.topStage = c.sampleProcesses(pids)
+}
+
+func (c *collector) currentTopProcesses() []ProcessInfo {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.top
+}
+
+// sampleProcesses measures every process once per slow tick and keeps the
+// heaviest by CPU and by memory. The handle cache makes Percent(0) return
+// usage over the 10 s window, matching what `top` shows.
+func (c *collector) sampleProcesses(pids []int32) []ProcessInfo {
+	alive := make(map[int32]bool, len(pids))
+	infos := make([]ProcessInfo, 0, 64)
+	for _, pid := range pids {
+		alive[pid] = true
+		proc, cached := c.procCache[pid]
+		if !cached {
+			created, err := process.NewProcess(pid)
+			if err != nil {
+				continue
+			}
+			proc = created
+			c.procCache[pid] = proc
+		}
+		cpuPercent, _ := proc.Percent(0)
+		var rss uint64
+		if memory, err := proc.MemoryInfo(); err == nil && memory != nil {
+			rss = memory.RSS
+		}
+		// Kernel threads and idle helpers would drown the ranking in noise.
+		if cpuPercent < 0.05 && rss < 5<<20 {
+			continue
+		}
+		name, _ := proc.Name()
+		if name == "" {
+			continue
+		}
+		user, _ := proc.Username()
+		infos = append(infos, ProcessInfo{
+			PID: pid, Name: name, CPUPercent: cpuPercent, MemBytes: rss, User: user,
+		})
+	}
+	for pid := range c.procCache {
+		if !alive[pid] {
+			delete(c.procCache, pid)
+		}
+	}
+	return rankProcesses(infos)
+}
+
+// rankProcesses merges the CPU top-8 and memory top-8 (CPU order first),
+// deduplicated and capped at 12 entries.
+func rankProcesses(infos []ProcessInfo) []ProcessInfo {
+	byCPU := append([]ProcessInfo(nil), infos...)
+	sort.Slice(byCPU, func(i, j int) bool { return byCPU[i].CPUPercent > byCPU[j].CPUPercent })
+	byMemory := append([]ProcessInfo(nil), infos...)
+	sort.Slice(byMemory, func(i, j int) bool { return byMemory[i].MemBytes > byMemory[j].MemBytes })
+
+	seen := map[int32]bool{}
+	out := make([]ProcessInfo, 0, 12)
+	take := func(list []ProcessInfo, limit int) {
+		for _, item := range list[:min(limit, len(list))] {
+			if !seen[item.PID] && len(out) < 12 {
+				seen[item.PID] = true
+				out = append(out, item)
+			}
+		}
+	}
+	take(byCPU, 8)
+	take(byMemory, 8)
+	return out
 }

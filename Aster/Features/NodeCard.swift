@@ -35,19 +35,20 @@ struct NodeCard: View {
           Text(node.info.name).font(AsterTypography.sectionTitle).foregroundStyle(
             AsterColor.foregroundPrimary)
         }
-        Text(subtitle)
+        Text(node.info.region)
           .font(AsterTypography.caption)
           .foregroundStyle(AsterColor.foregroundSecondary)
           .lineLimit(1)
-          .truncationMode(.middle)
+        if !node.info.hardware.isEmpty {
+          Text(node.info.hardware)
+            .font(AsterTypography.caption)
+            .foregroundStyle(AsterColor.foregroundSecondary.opacity(0.8))
+            .lineLimit(1)
+        }
       }
       Spacer()
       StatusDot(status: node.info.status)
     }
-  }
-
-  private var subtitle: String {
-    [node.info.region, node.info.hardware].filter { !$0.isEmpty }.joined(separator: " · ")
   }
 
   private var metricsRow: some View {

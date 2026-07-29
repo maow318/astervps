@@ -202,6 +202,18 @@ import Foundation
     Array((samples + [MetricSample(id: UUID(), date: .now, value: value)]).suffix(28))
   }
 
+  /// Sample /v1/processes payload for the menu-bar hover popover.
+  static func sampleProcesses() -> [AgentProcess] {
+    [
+      AgentProcess(pid: 612, name: "nginx", cpuPercent: 12.4, memBytes: 84_000_000, user: "root"),
+      AgentProcess(pid: 890, name: "postgres", cpuPercent: 8.1, memBytes: 412_000_000, user: "postgres"),
+      AgentProcess(pid: 2210, name: "node", cpuPercent: 6.8, memBytes: 265_000_000, user: "deploy"),
+      AgentProcess(pid: 903, name: "redis-server", cpuPercent: 2.2, memBytes: 96_000_000, user: "redis"),
+      AgentProcess(pid: 1102, name: "dockerd", cpuPercent: 1.4, memBytes: 152_000_000, user: "root"),
+      AgentProcess(pid: 415, name: "systemd-journald", cpuPercent: 0.6, memBytes: 48_000_000, user: "root"),
+    ]
+  }
+
   /// Realistic /v1/services payload for previews and snapshot verification:
   /// public + local listeners, compose-grouped containers, an active swarm,
   /// a failed unit and both package sources.

@@ -2067,6 +2067,40 @@
         }
       }
     },
+    "menu.processes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Top processes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资源占用"
+          }
+        }
+      }
+    },
+    "menu.processesOld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requires agent 0.4.0 or newer"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要 agent 0.4.0 及以上"
+          }
+        }
+      }
+    },
     "menu.quit" : {
       "extractionState" : "manual",
       "localizations" : {

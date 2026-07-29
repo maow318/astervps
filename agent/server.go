@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 type server struct {
@@ -18,6 +19,7 @@ func registerHandlers(mux *http.ServeMux, s *server) {
 	mux.HandleFunc("/v1/metrics", s.metricsHandler)
 	mux.HandleFunc("/v1/history", s.historyHandler)
 	mux.HandleFunc("/v1/services", s.servicesHandler)
+	mux.HandleFunc("/v1/processes", s.processesHandler)
 }
 
 func (s *server) authorized(w http.ResponseWriter, r *http.Request) bool {
@@ -67,6 +69,20 @@ func (s *server) servicesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	force := r.URL.Query().Get("refresh") == "1"
 	writeJSON(w, http.StatusOK, s.services.current(force))
+}
+
+func (s *server) processesHandler(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(w, r) {
+		return
+	}
+	processes := s.collector.currentTopProcesses()
+	if processes == nil {
+		processes = []ProcessInfo{}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"timestamp": time.Now().Unix(),
+		"processes": processes,
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

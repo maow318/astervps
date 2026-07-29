@@ -262,3 +262,33 @@ func TestStatusHealthy(t *testing.T) {
 		}
 	}
 }
+
+func TestRankProcesses(t *testing.T) {
+	infos := []ProcessInfo{
+		{PID: 1, Name: "idle", CPUPercent: 0.1, MemBytes: 10 << 20},
+		{PID: 2, Name: "hot", CPUPercent: 95, MemBytes: 20 << 20},
+		{PID: 3, Name: "fat", CPUPercent: 0.5, MemBytes: 4 << 30},
+		{PID: 4, Name: "both", CPUPercent: 40, MemBytes: 1 << 30},
+	}
+	ranked := rankProcesses(infos)
+	if ranked[0].Name != "hot" || ranked[1].Name != "both" {
+		t.Fatalf("cpu order wrong: %+v", ranked)
+	}
+	seen := map[int32]int{}
+	for _, item := range ranked {
+		seen[item.PID]++
+		if seen[item.PID] > 1 {
+			t.Fatalf("duplicate pid %d", item.PID)
+		}
+	}
+	if len(ranked) != 4 {
+		t.Fatalf("expected 4 entries, got %d", len(ranked))
+	}
+	big := make([]ProcessInfo, 40)
+	for i := range big {
+		big[i] = ProcessInfo{PID: int32(i + 10), Name: "p", CPUPercent: float64(i), MemBytes: uint64(i)}
+	}
+	if got := len(rankProcesses(big)); got > 12 {
+		t.Fatalf("cap failed: %d", got)
+	}
+}

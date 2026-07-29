@@ -18,9 +18,6 @@ struct NodeDetailView: View {
       ScrollView {
         VStack(alignment: .leading, spacing: AsterSpacing.lg) {
           detailHeader(node)
-          Picker(L.text("services.tab.overview"), selection: $section) {
-            ForEach(DetailSection.allCases) { Text(L.text($0.key)).tag($0) }
-          }.pickerStyle(.segmented).frame(maxWidth: 240).labelsHidden()
           if section == .services {
             NodeServicesView(nodeID: nodeID)
           } else {
@@ -175,8 +172,16 @@ struct NodeDetailView: View {
         HStack { ForEach(node.info.tags, id: \.self) { TagChip(text: $0) } }
       }
       Spacer()
-      Text(AsterFormat.uptime(node.metrics.uptime))
-        .font(AsterTypography.metric).foregroundStyle(AsterColor.foregroundSecondary)
+      VStack(alignment: .trailing, spacing: AsterSpacing.xs) {
+        Text(AsterFormat.uptime(node.metrics.uptime))
+          .font(AsterTypography.metric).foregroundStyle(AsterColor.foregroundSecondary)
+        Picker(L.text("services.tab.overview"), selection: $section) {
+          ForEach(DetailSection.allCases) { Text(L.text($0.key)).tag($0) }
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 170)
+        .labelsHidden()
+      }
     }
   }
   private func metricRings(_ node: NodeSnapshot) -> some View {

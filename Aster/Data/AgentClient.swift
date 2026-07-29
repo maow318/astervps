@@ -57,6 +57,10 @@ final class AgentClient {
     try await get("/v1/history", query: [URLQueryItem(name: "since", value: "\(since)")])
   }
 
+  func processes() async throws -> AgentProcessList {
+    try await get("/v1/processes")
+  }
+
   func services(forceRefresh: Bool = false) async throws -> AgentServices {
     try await get(
       "/v1/services",

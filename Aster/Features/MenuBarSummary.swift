@@ -177,9 +177,11 @@ private let panelFill = Color.primary.opacity(0.045)
 // MARK: - Node row
 
 private struct NodeRow: View {
+  @Environment(MonitorStore.self) private var store
   let node: NodeSnapshot
   let action: () -> Void
   @State private var hovered = false
+  @State private var showProcesses = false
 
   var body: some View {
     Button(action: action) {
@@ -219,6 +221,20 @@ private struct NodeRow: View {
     .buttonStyle(.plain)
     .animation(AsterAnimation.gentle, value: hovered)
     .onHover { hovered = $0 }
+    .task(id: hovered) {
+      // Show the per-process breakdown after a short dwell, Sensei-style.
+      if hovered {
+        try? await Task.sleep(for: .milliseconds(350))
+        guard !Task.isCancelled, hovered else { return }
+        showProcesses = true
+        await store.loadTopProcesses(for: node.id)
+      } else {
+        showProcesses = false
+      }
+    }
+    .popover(isPresented: $showProcesses, arrowEdge: .trailing) {
+      ProcessPopover(nodeID: node.id, nodeName: node.info.name).environment(store)
+    }
   }
 
   private func meter(_ label: String, _ value: Double, _ tint: Color) -> some View {
@@ -246,6 +262,61 @@ private struct NodeRow: View {
   private func compactRate(_ value: Double) -> String {
     let rate = AsterFormat.rate(value)
     return "\(rate.value) \(rate.unit)"
+  }
+}
+
+// MARK: - Top-process popover
+
+private struct ProcessPopover: View {
+  @Environment(MonitorStore.self) private var store
+  let nodeID: UUID
+  let nodeName: String
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: AsterSpacing.xs) {
+      HStack(spacing: 5) {
+        Image(systemName: "chart.bar.fill")
+          .font(.system(size: 9, weight: .semibold))
+          .foregroundStyle(AsterColor.accent)
+        Text("\(nodeName) · \(L.text("menu.processes"))")
+          .font(.system(size: 11, weight: .semibold, design: .rounded))
+      }
+      switch store.processesByNode[nodeID] {
+      case .none:
+        ProgressView().controlSize(.small).frame(maxWidth: .infinity)
+          .padding(.vertical, AsterSpacing.xs)
+      case .some(.none):
+        Text(L.text("menu.processesOld"))
+          .font(AsterTypography.caption)
+          .foregroundStyle(AsterColor.foregroundSecondary)
+      case .some(.some(let processes)):
+        let ranked = processes.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(8)
+        VStack(spacing: 4) {
+          ForEach(Array(ranked)) { proc in
+            HStack(spacing: AsterSpacing.xs) {
+              Text(proc.name)
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .lineLimit(1)
+                .truncationMode(.middle)
+              Spacer(minLength: AsterSpacing.xs)
+              Text(String(format: "%.1f%%", proc.cpuPercent))
+                .font(.system(size: 10.5, weight: .semibold, design: .rounded).monospacedDigit())
+                .frame(width: 46, alignment: .trailing)
+              Text(AsterFormat.bytes(proc.memBytes))
+                .font(.system(size: 10, design: .rounded).monospacedDigit())
+                .foregroundStyle(AsterColor.foregroundSecondary)
+                .frame(width: 62, alignment: .trailing)
+            }
+          }
+        }
+        if ranked.isEmpty {
+          Text("—").font(AsterTypography.caption)
+            .foregroundStyle(AsterColor.foregroundSecondary)
+        }
+      }
+    }
+    .padding(AsterSpacing.sm)
+    .frame(width: 250)
   }
 }
 

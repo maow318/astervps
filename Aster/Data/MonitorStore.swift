@@ -28,6 +28,10 @@ final class MonitorStore {
   var servicesByNode: [UUID: ServicesState] = [:]
   /// Per-node alert bookkeeping (thresholds, cooldowns; see MonitorStoreAlerts.swift).
   var alertRuntime: [UUID: AlertRuntime] = [:]
+  /// Top-process snapshots for the menu-bar hover popover; nil value means the
+  /// agent predates /v1/processes.
+  var processesByNode: [UUID: [AgentProcess]?] = [:]
+  var processesFetchedAt: [UUID: Date] = [:]
   /// Sidebar groups derive from machine group names (see extension).
   var groupIDByName: [String: UUID] = [:]
 
@@ -126,6 +130,7 @@ final class MonitorStore {
       store.groups = mock.loadGroups()
       for node in store.nodes.prefix(2) {
         store.servicesByNode[node.id] = .loaded(MockDataSource.sampleServices())
+        store.processesByNode[node.id] = MockDataSource.sampleProcesses()
       }
       return store
     }

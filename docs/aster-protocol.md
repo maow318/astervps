@@ -9,6 +9,7 @@ Values are JSON `snake_case`; byte quantities are bytes and percentages use `0â€
 | `GET /v1/metrics` | The latest complete metric frame. |
 | `GET /v1/history?since=<unix_ts>` | History frames strictly newer than `since`. |
 | `GET /v1/services` | Cached service inspection: listening ports, websites, Docker, systemd, software inventory. `?refresh=1` forces a synchronous re-collect (rate-limited to one per 10 s). |
+| `GET /v1/processes` | Top processes by CPU and memory (agent >= 0.4.0). Refreshed on the 10 s slow cadence; `cpu_percent` is measured over that window, matching `top`. `{"timestamp":â€¦,"processes":[{"pid":612,"name":"nginx","cpu_percent":3.1,"mem_bytes":104857600,"user":"root"}]}` |
 
 ```json
 {"timestamp":1710000000,"cpu_usage":12.5,"memory":{"used":123,"total":456},"network":{"up":42,"down":81,"total_up":1000,"total_down":2000},"load":{"load1":0.5,"load5":0.4,"load15":0.3}}

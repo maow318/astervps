@@ -9,7 +9,15 @@
 #   --version <v>     release tag to install, default latest
 #   --repo <o/r>      GitHub repository, default set below at release time
 #   --sha256 <hex>    optional: verify the downloaded binary against this digest
-#   --uninstall       stop the service and remove the binary
+#   --domain <d>      Linux only: hide the agent behind a real domain on 443.
+#                     PREREQUISITE: the domain's A record must already point at
+#                     this server (or be proxied through Cloudflare). The agent
+#                     then listens on loopback only and Caddy/nginx terminates
+#                     TLS with a CA certificate — in Aster.app just enter
+#                     https://<domain>, no fingerprint needed.
+#   --proxy <p>       caddy | nginx | auto (default auto: existing caddy >
+#                     existing nginx > install caddy)
+#   --uninstall       stop the service, remove the binary and any proxy block
 set -eu
 
 REPO="maow318/astervps"
@@ -19,7 +27,11 @@ STATE_DIR="/var/lib/aster-agent"
 GHPROXY=""
 VERSION="latest"
 SHA256=""
+DOMAIN=""
+PROXY="auto"
 UNINSTALL=0
+NGINX_CONF=/etc/nginx/conf.d/aster-agent.conf
+CADDYFILE=/etc/caddy/Caddyfile
 BIN=/usr/local/bin/aster-agent
 SERVICE=aster-agent
 TOKEN_DIR=/etc/aster-agent
@@ -39,6 +51,8 @@ while [ "$#" -gt 0 ]; do
     --version) VERSION="$2"; shift 2 ;;
     --repo) REPO="$2"; shift 2 ;;
     --sha256) SHA256="$2"; shift 2 ;;
+    --domain) DOMAIN="$2"; shift 2 ;;
+    --proxy) PROXY="$2"; shift 2 ;;
     --uninstall) UNINSTALL=1; shift ;;
     *) log "ignoring unknown argument: $1"; shift ;;
   esac
@@ -66,8 +80,20 @@ stop_previous() {
   fi
 }
 
+remove_proxy_config() {
+  if [ -f "$CADDYFILE" ] && grep -q '# aster-agent begin' "$CADDYFILE" 2>/dev/null; then
+    sed -i '/# aster-agent begin/,/# aster-agent end/d' "$CADDYFILE"
+    systemctl reload caddy 2>/dev/null || true
+  fi
+  if [ -f "$NGINX_CONF" ]; then
+    rm -f "$NGINX_CONF"
+    systemctl reload nginx 2>/dev/null || true
+  fi
+}
+
 if [ "$UNINSTALL" = 1 ]; then
   stop_previous
+  [ "$(uname -s)" = "Linux" ] && remove_proxy_config
   rm -f "$BIN" "$TOKEN_FILE"
   rmdir "$TOKEN_DIR" 2>/dev/null || true
   log "aster-agent uninstalled (state dir $STATE_DIR kept; remove manually if desired)"
@@ -91,6 +117,29 @@ case "$(uname -m)" in
   i386 | i686) ARCH=386 ;;
   *) fail "unsupported architecture: $(uname -m)" ;;
 esac
+
+# ---- domain mode pre-flight -------------------------------------------------
+if [ -n "$DOMAIN" ]; then
+  [ "$PLATFORM" = "linux" ] || fail "--domain mode is Linux-only (the local Mac never needs it)"
+  case "$PROXY" in caddy|nginx|auto) ;; *) fail "--proxy must be caddy, nginx or auto" ;; esac
+  # The agent must not stay exposed on the public interface in domain mode.
+  AGENT_PORT="${LISTEN##*:}"
+  LISTEN="127.0.0.1:$AGENT_PORT"
+
+  log "domain mode: $DOMAIN (agent will listen on loopback only)"
+  log "prerequisite: the domain's A record must already point at this server,"
+  log "or be proxied through a CDN such as Cloudflare."
+  RESOLVED=$(getent ahosts "$DOMAIN" 2>/dev/null | awk '{print $1; exit}' || true)
+  if [ -z "$RESOLVED" ]; then
+    PUBLIC_IP=$(curl -4fsS --max-time 8 https://api.ipify.org 2>/dev/null || true)
+    fail "cannot resolve $DOMAIN — add an A record first: $DOMAIN -> ${PUBLIC_IP:-your-server-IP}"
+  fi
+  PUBLIC_IP=$(curl -4fsS --max-time 8 https://api.ipify.org 2>/dev/null || true)
+  if [ -n "$PUBLIC_IP" ] && [ "$RESOLVED" != "$PUBLIC_IP" ]; then
+    log "NOTE: $DOMAIN resolves to $RESOLVED but this server's IP is $PUBLIC_IP."
+    log "      Expected if the domain is behind a CDN proxy (Cloudflare); otherwise fix the A record."
+  fi
+fi
 
 ASSET="aster-agent-$PLATFORM-$ARCH"
 if [ "$VERSION" = "latest" ]; then
@@ -209,10 +258,88 @@ else
   fail "no supported init system found (systemd or OpenRC)"
 fi
 
+# ---- domain mode: reverse proxy + real certificate --------------------------
+setup_caddy() {
+  if ! command -v caddy >/dev/null 2>&1; then
+    log "installing Caddy (official repository)"
+    command -v apt-get >/dev/null 2>&1 || fail "automatic Caddy install needs apt; install caddy or nginx manually, then re-run"
+    apt-get update -qq
+    apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https gnupg >/dev/null
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+      | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+    curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
+      > /etc/apt/sources.list.d/caddy-stable.list
+    apt-get update -qq && apt-get install -y -qq caddy >/dev/null
+  fi
+  touch "$CADDYFILE"
+  sed -i '/# aster-agent begin/,/# aster-agent end/d' "$CADDYFILE"
+  cat >> "$CADDYFILE" << EOF
+# aster-agent begin
+$DOMAIN {
+  reverse_proxy https://127.0.0.1:$AGENT_PORT {
+    transport http {
+      tls_insecure_skip_verify
+    }
+  }
+}
+# aster-agent end
+EOF
+  systemctl enable --now caddy >/dev/null 2>&1 || true
+  systemctl reload caddy 2>/dev/null || systemctl restart caddy
+  log "Caddy configured; the certificate is issued and renewed automatically."
+}
+
+setup_nginx() {
+  cat > "$NGINX_CONF" << EOF
+server {
+    listen 80;
+    server_name $DOMAIN;
+    location / {
+        proxy_pass https://127.0.0.1:$AGENT_PORT;
+        proxy_ssl_verify off;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+    }
+}
+EOF
+  nginx -t || fail "nginx config test failed"
+  systemctl reload nginx 2>/dev/null || systemctl restart nginx
+  if ! command -v certbot >/dev/null 2>&1; then
+    log "installing certbot"
+    if command -v apt-get >/dev/null 2>&1; then
+      apt-get update -qq && apt-get install -y -qq certbot python3-certbot-nginx >/dev/null
+    elif command -v dnf >/dev/null 2>&1; then
+      dnf install -y -q certbot python3-certbot-nginx
+    else
+      fail "certbot unavailable; install it manually, then run: certbot --nginx -d $DOMAIN"
+    fi
+  fi
+  certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email \
+    || fail "certificate issuance failed (is port 80 reachable and DNS live?); fix and re-run: certbot --nginx -d $DOMAIN"
+  log "nginx + Let's Encrypt configured; certbot renews automatically."
+}
+
+if [ -n "$DOMAIN" ]; then
+  case "$PROXY" in
+    caddy) setup_caddy ;;
+    nginx) setup_nginx ;;
+    auto)
+      if command -v caddy >/dev/null 2>&1; then setup_caddy
+      elif command -v nginx >/dev/null 2>&1; then setup_nginx
+      else setup_caddy
+      fi
+      ;;
+  esac
+fi
+
 log ""
 log "=========================================="
 log "aster-agent installed and running on $LISTEN"
-if [ -n "${FINGERPRINT:-}" ]; then
+if [ -n "$DOMAIN" ]; then
+  log "Domain mode active. In Aster.app add this machine with:"
+  log "  https://$DOMAIN"
+  log "No fingerprint comparison needed — the CA certificate is verified automatically."
+elif [ -n "${FINGERPRINT:-}" ]; then
   log "TLS SHA-256 fingerprint (compare in Aster.app):"
   log "  $FINGERPRINT"
 elif [ "$PLATFORM" = "darwin" ]; then

@@ -52,6 +52,14 @@ The agent creates an ECDSA P-256 self-signed certificate when no paths are suppl
 
 ## Domain deployments (firewall resilience)
 
+One-click via the installer (prerequisite: the domain's A record already points at the server, or is proxied through Cloudflare):
+
+```
+curl -fsSL <raw-url>/agent/install.sh | sudo sh -s -- --token <TOKEN> --domain agent.example.com
+```
+
+The installer verifies DNS, forces the agent onto loopback, then configures the reverse proxy: existing Caddy > existing nginx (+ certbot) > installs Caddy. Re-runs are idempotent; `--uninstall` removes the proxy block too. Manual setup:
+
 `IP + self-signed certificate + odd port` is a fingerprintable pattern that national firewalls block. The recommended hardened deployment hides the agent behind the host's existing web server on 443 under a real domain:
 
 ```

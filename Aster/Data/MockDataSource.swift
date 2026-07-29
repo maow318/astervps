@@ -201,4 +201,98 @@ import Foundation
   private func append(_ value: Double, to samples: [MetricSample]) -> [MetricSample] {
     Array((samples + [MetricSample(id: UUID(), date: .now, value: value)]).suffix(28))
   }
+
+  /// Realistic /v1/services payload for previews and snapshot verification:
+  /// public + local listeners, compose-grouped containers, an active swarm,
+  /// a failed unit and both package sources.
+  static func sampleServices() -> AgentServices {
+    AgentServices(
+      collectedAt: Int64(Date.now.timeIntervalSince1970) - 22,
+      restricted: false,
+      listeners: [
+        AgentListener(
+          port: 443, protocol: "tcp", address: "0.0.0.0", scope: "public", pid: 612,
+          process: "nginx", cmdline: "nginx: master process /usr/sbin/nginx", user: "root",
+          container: nil),
+        AgentListener(
+          port: 80, protocol: "tcp", address: "0.0.0.0", scope: "public", pid: 612,
+          process: "nginx", cmdline: "nginx: master process /usr/sbin/nginx", user: "root",
+          container: nil),
+        AgentListener(
+          port: 22, protocol: "tcp", address: "0.0.0.0", scope: "public", pid: 1102,
+          process: "sshd", cmdline: "sshd: /usr/sbin/sshd -D", user: "root", container: nil),
+        AgentListener(
+          port: 8080, protocol: "tcp", address: "0.0.0.0", scope: "public", pid: 2210,
+          process: "docker-proxy", cmdline: "/usr/bin/docker-proxy -proto tcp", user: "root",
+          container: "blog-web"),
+        AgentListener(
+          port: 5432, protocol: "tcp", address: "127.0.0.1", scope: "local", pid: 890,
+          process: "postgres", cmdline: "/usr/lib/postgresql/16/bin/postgres", user: "postgres",
+          container: nil),
+        AgentListener(
+          port: 6379, protocol: "tcp", address: "127.0.0.1", scope: "local", pid: 903,
+          process: "redis-server", cmdline: "redis-server 127.0.0.1:6379", user: "redis",
+          container: nil),
+        AgentListener(
+          port: 53, protocol: "udp", address: "127.0.0.53", scope: "local", pid: 401,
+          process: "systemd-resolve", cmdline: "/lib/systemd/systemd-resolved", user: "systemd-resolve",
+          container: nil),
+      ],
+      websites: [
+        AgentWebsite(domain: "blog.example.com", server: "nginx", port: 443, tls: true, status: 200, latencyMs: 12, ok: true, certDaysLeft: 71),
+        AgentWebsite(domain: "api.example.com", server: "nginx", port: 443, tls: true, status: 301, latencyMs: 8, ok: true, certDaysLeft: 9),
+        AgentWebsite(domain: "status.example.com", server: "caddy", port: 443, tls: true, status: 502, latencyMs: 41, ok: false, certDaysLeft: 55),
+        AgentWebsite(domain: "legacy.example.com", server: "nginx", port: 8080, tls: false, status: 200, latencyMs: 3, ok: true, certDaysLeft: nil),
+      ],
+      docker: AgentDocker(
+        available: true, reason: nil, version: "27.1.1",
+        swarm: AgentSwarm(
+          active: true, role: "manager", nodes: 3,
+          services: [
+            AgentSwarmService(name: "ingress-proxy", replicas: "2"),
+            AgentSwarmService(name: "metrics-shipper", replicas: "global"),
+          ]),
+        containers: [
+          AgentContainer(
+            id: "ab12cd34ef56", name: "blog-web", image: "ghcr.io/example/blog:1.4",
+            state: "running", status: "Up 3 days", composeProject: "blog",
+            composeService: "web", ports: [AgentContainerPort(host: 8080, container: 80, protocol: "tcp")],
+            cpuPercent: 2.4, memUsed: 210_000_000, memLimit: 536_870_912, restarts: 0),
+          AgentContainer(
+            id: "cd34ef56ab12", name: "blog-db", image: "postgres:16-alpine",
+            state: "running", status: "Up 3 days", composeProject: "blog",
+            composeService: "db", ports: [],
+            cpuPercent: 0.6, memUsed: 148_000_000, memLimit: 0, restarts: 1),
+          AgentContainer(
+            id: "ef56ab12cd34", name: "backup-runner", image: "restic/restic:0.17",
+            state: "exited", status: "Exited (0) 5 hours ago", composeProject: nil,
+            composeService: nil, ports: [],
+            cpuPercent: 0, memUsed: 0, memLimit: 0, restarts: 0),
+        ]),
+      systemd: AgentSystemd(
+        running: [
+          AgentSystemdUnit(name: "nginx.service", description: "A high performance web server"),
+          AgentSystemdUnit(name: "docker.service", description: "Docker Application Container Engine"),
+          AgentSystemdUnit(name: "postgresql.service", description: "PostgreSQL RDBMS"),
+          AgentSystemdUnit(name: "redis-server.service", description: "Advanced key-value store"),
+          AgentSystemdUnit(name: "ssh.service", description: "OpenBSD Secure Shell server"),
+          AgentSystemdUnit(name: "fail2ban.service", description: "Fail2Ban Service"),
+          AgentSystemdUnit(name: "cron.service", description: "Regular background program processing daemon"),
+          AgentSystemdUnit(name: "aster-agent.service", description: "Aster Agent"),
+          AgentSystemdUnit(name: "systemd-journald.service", description: "Journal Service"),
+          AgentSystemdUnit(name: "unattended-upgrades.service", description: "Unattended Upgrades Shutdown"),
+        ],
+        failed: ["certbot-renew.service"]),
+      packages: [
+        AgentPackage(name: "docker", version: "27.1.1", source: "bin"),
+        AgentPackage(name: "fail2ban", version: "1.0.2-3", source: "pkg"),
+        AgentPackage(name: "go", version: "1.22.5", source: "bin"),
+        AgentPackage(name: "nginx", version: "1.24.0-2ubuntu7", source: "pkg"),
+        AgentPackage(name: "node", version: "20.11.1", source: "bin"),
+        AgentPackage(name: "postgresql", version: "16.3-1", source: "pkg"),
+        AgentPackage(name: "python3", version: "3.12.3", source: "bin"),
+        AgentPackage(name: "redis-server", version: "7.0.15-1", source: "pkg"),
+        AgentPackage(name: "ufw", version: "0.36.2-6", source: "pkg"),
+      ])
+  }
 }

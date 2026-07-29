@@ -27,6 +27,7 @@ struct AsterApp: App {
     MenuBarExtra(L.text("app.name"), systemImage: "waveform.path.ecg") {
       MenuBarSummary().environment(store)
     }
+    .menuBarExtraStyle(.window)
   }
 }
 

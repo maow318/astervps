@@ -41,7 +41,9 @@ struct MainSplitView: View {
           }
         }
         Section {
-          Label(L.text("sidebar.alerts"), systemImage: "bell").tag(SidebarDestination.alerts)
+          Label(L.text("sidebar.alerts"), systemImage: "bell")
+            .badge(store.unreadAlertCount)
+            .tag(SidebarDestination.alerts)
           Label(L.text("sidebar.settings"), systemImage: "gearshape").tag(
             SidebarDestination.settings)
         }

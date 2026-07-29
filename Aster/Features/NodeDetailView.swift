@@ -5,11 +5,58 @@ struct NodeDetailView: View {
   @Environment(MonitorStore.self) private var store
   let nodeID: UUID
   @State private var range: TimeRange = .hour
+  @State private var section: DetailSection = .overview
+
+  private enum DetailSection: String, CaseIterable, Identifiable {
+    case overview, services
+    var id: String { rawValue }
+    var key: String { "services.tab.\(rawValue)" }
+  }
+
   var body: some View {
     if let node = store.node(id: nodeID) {
       ScrollView {
         VStack(alignment: .leading, spacing: AsterSpacing.lg) {
           detailHeader(node)
+          Picker(L.text("services.tab.overview"), selection: $section) {
+            ForEach(DetailSection.allCases) { Text(L.text($0.key)).tag($0) }
+          }.pickerStyle(.segmented).frame(maxWidth: 240).labelsHidden()
+          if section == .services {
+            NodeServicesView(nodeID: nodeID)
+          } else {
+            overview(node)
+          }
+        }.padding(AsterSpacing.lg)
+      }
+      .navigationTitle(node.info.name).toolbar {
+        ToolbarItem { StatusDot(status: node.info.status) }
+      }
+      .task(id: range) { await store.loadHistory(for: nodeID, hours: range.hours) }
+      .overlay(alignment: .bottom) {
+        if let message = store.historyError(for: nodeID) {
+          HStack {
+            Text(message)
+              .font(AsterTypography.caption)
+              .lineLimit(1)
+            Button(L.text("settings.test")) {
+              store.clearHistoryError(for: nodeID)
+              Task { await store.loadHistory(for: nodeID, hours: range.hours) }
+            }
+          }
+          .padding(AsterSpacing.sm)
+          .background(.thinMaterial, in: Capsule())
+          .padding()
+        }
+      }
+    } else {
+      EmptyStateView(
+        symbol: "server.rack", title: L.text("node.missing.title"),
+        message: L.text("node.missing.message"))
+    }
+  }
+
+  @ViewBuilder private func overview(_ node: NodeSnapshot) -> some View {
+          infoCard(node)
           metricRings(node)
           Picker(L.text("history.range"), selection: $range) {
             ForEach(TimeRange.allCases) { Text(L.text($0.key)).tag($0) }
@@ -67,34 +114,42 @@ struct NodeDetailView: View {
               }
             }
           }
-        }.padding(AsterSpacing.lg)
-      }
-      .navigationTitle(node.info.name).toolbar {
-        ToolbarItem { StatusDot(status: node.info.status) }
-      }
-      .task(id: range) { await store.loadHistory(for: nodeID, hours: range.hours) }
-      .overlay(alignment: .bottom) {
-        if let message = store.historyError(for: nodeID) {
-          HStack {
-            Text(message)
-              .font(AsterTypography.caption)
-              .lineLimit(1)
-            Button(L.text("settings.test")) {
-              store.clearHistoryError(for: nodeID)
-              Task { await store.loadHistory(for: nodeID, hours: range.hours) }
-            }
-          }
-          .padding(AsterSpacing.sm)
-          .background(.thinMaterial, in: Capsule())
-          .padding()
-        }
-      }
-    } else {
-      EmptyStateView(
-        symbol: "server.rack", title: L.text("node.missing.title"),
-        message: L.text("node.missing.message"))
+  }
+
+  /// Identity card in the visual language of desktop system-info dashboards:
+  /// muted label above a bold value, one cell per fact.
+  private func infoCard(_ node: NodeSnapshot) -> some View {
+    let meta = store.metaByMachine[nodeID]
+    return GlassCard {
+      LazyVGrid(
+        columns: [GridItem(.adaptive(minimum: 160), spacing: AsterSpacing.md, alignment: .leading)],
+        alignment: .leading, spacing: AsterSpacing.sm
+      ) {
+        infoCell(L.text("meta.hostname"), meta?.hostname ?? node.info.name)
+        infoCell(L.text("meta.os"), meta?.os ?? node.info.operatingSystem)
+        infoCell(L.text("meta.kernel"), meta?.kernel ?? "—")
+        infoCell(L.text("meta.arch"), meta?.architecture ?? "—")
+        infoCell(
+          L.text("meta.cpu"),
+          meta.map { String(format: L.text("hardware.format"), $0.cpuModel, $0.cpuCores) }
+            ?? (node.info.hardware.isEmpty ? "—" : node.info.hardware))
+        infoCell(L.text("meta.agent"), meta.map { "v\($0.agentVersion)" } ?? "—")
+      }.frame(maxWidth: .infinity, alignment: .leading)
     }
   }
+
+  private func infoCell(_ label: String, _ value: String) -> some View {
+    VStack(alignment: .leading, spacing: 3) {
+      Text(label)
+        .font(AsterTypography.caption)
+        .foregroundStyle(AsterColor.foregroundSecondary)
+      Text(value)
+        .font(.system(size: 13, weight: .semibold, design: .rounded))
+        .lineLimit(1)
+        .truncationMode(.middle)
+    }
+  }
+
   private func detailLine(_ title: String, _ value: String) -> some View {
     HStack {
       Text(title)

@@ -60,6 +60,8 @@ extension MonitorStore {
     guard let index = nodes.firstIndex(where: { $0.id == result.id }) else { return }
     let id = result.id
     let previousState = machineStates[id]
+    let previousStatus = nodes[index].info.status
+    defer { evaluateMetricAlerts(for: id, previousStatus: previousStatus) }
     defer {
       #if DEBUG
         // State transitions go to stdout so headless E2E runs can assert on them.

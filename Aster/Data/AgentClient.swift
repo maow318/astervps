@@ -57,6 +57,12 @@ final class AgentClient {
     try await get("/v1/history", query: [URLQueryItem(name: "since", value: "\(since)")])
   }
 
+  func services(forceRefresh: Bool = false) async throws -> AgentServices {
+    try await get(
+      "/v1/services",
+      query: forceRefresh ? [URLQueryItem(name: "refresh", value: "1")] : [])
+  }
+
   func invalidate() {
     // Connections are one-shot; nothing persistent to tear down.
   }

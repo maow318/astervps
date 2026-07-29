@@ -18,29 +18,36 @@ struct NodeCard: View {
   }
 
   private var headerRow: some View {
-    HStack(alignment: .top) {
-      VStack(alignment: .leading, spacing: 3) {
+    HStack(alignment: .center, spacing: AsterSpacing.sm) {
+      ZStack {
+        RoundedRectangle(cornerRadius: 10, style: .continuous)
+          .fill(Color.primary.opacity(0.055))
+          .overlay {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+              .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+          }
+        OSBadge(osID: node.info.operatingSystem, size: 19)
+      }
+      .frame(width: 36, height: 36)
+      VStack(alignment: .leading, spacing: 2) {
         HStack(spacing: 6) {
-          Text(node.info.flag)
+          Text(node.info.flag).font(.system(size: 12))
           Text(node.info.name).font(AsterTypography.sectionTitle).foregroundStyle(
             AsterColor.foregroundPrimary)
         }
-        Text(node.info.region)
+        Text(subtitle)
           .font(AsterTypography.caption)
           .foregroundStyle(AsterColor.foregroundSecondary)
-        if !node.info.hardware.isEmpty {
-          Text(node.info.hardware)
-            .font(AsterTypography.caption)
-            .foregroundStyle(AsterColor.foregroundSecondary.opacity(0.8))
-            .lineLimit(1)
-        }
+          .lineLimit(1)
+          .truncationMode(.middle)
       }
       Spacer()
-      HStack(spacing: 6) {
-        OSBadge(osID: node.info.operatingSystem)
-        StatusDot(status: node.info.status)
-      }
+      StatusDot(status: node.info.status)
     }
+  }
+
+  private var subtitle: String {
+    [node.info.region, node.info.hardware].filter { !$0.isEmpty }.joined(separator: " · ")
   }
 
   private var metricsRow: some View {

@@ -23,6 +23,11 @@ final class MonitorStore {
   var isPolling = false
   var lastHistorySync: [UUID: Date] = [:]
   var detailHours: [UUID: Int] = [:]
+  /// Service inspection results, fetched on demand while the services tab is
+  /// visible (see MonitorStoreServices.swift).
+  var servicesByNode: [UUID: ServicesState] = [:]
+  /// Per-node alert bookkeeping (thresholds, cooldowns; see MonitorStoreAlerts.swift).
+  var alertRuntime: [UUID: AlertRuntime] = [:]
   /// Sidebar groups derive from machine group names (see extension).
   var groupIDByName: [String: UUID] = [:]
 
@@ -32,6 +37,7 @@ final class MonitorStore {
 
   func bootstrap() async {
     MachineStore.migrateLegacyIfNeeded()
+    restoreAlerts()
     machines = MachineStore.load()
     #if DEBUG
       applyDebugLaunchArguments()
@@ -118,6 +124,9 @@ final class MonitorStore {
       let mock = MockDataSource()
       store.nodes = mock.loadNodes()
       store.groups = mock.loadGroups()
+      for node in store.nodes.prefix(2) {
+        store.servicesByNode[node.id] = .loaded(MockDataSource.sampleServices())
+      }
       return store
     }
 

@@ -8,8 +8,10 @@ package main
 
 import (
 	"bytes"
+
 	"context"
 	"encoding/json"
+	"github.com/shirou/gopsutil/v4/disk"
 	"net/http"
 	"os/exec"
 	"regexp"
@@ -348,4 +350,37 @@ func parsePackageLines(output string) map[string]string {
 		result[name] = version
 	}
 	return result
+}
+
+// MARK: disks
+
+// collectDisks lists real mounted volumes with usage: root plus /Volumes on
+// macOS; /dev-backed filesystems elsewhere. Pseudo filesystems are skipped.
+func collectDisks() []DiskInfo {
+	partitions, err := disk.Partitions(false)
+	if err != nil {
+		return []DiskInfo{}
+	}
+	seen := map[string]bool{}
+	out := make([]DiskInfo, 0, 4)
+	for _, partition := range partitions {
+		mount := partition.Mountpoint
+		keep := mount == "/" || strings.HasPrefix(mount, "/Volumes/") ||
+			(strings.HasPrefix(partition.Device, "/dev/") &&
+				!strings.HasPrefix(mount, "/boot") && !strings.HasPrefix(mount, "/System"))
+		if !keep || seen[mount] {
+			continue
+		}
+		usage, err := disk.Usage(mount)
+		if err != nil || usage.Total == 0 {
+			continue
+		}
+		seen[mount] = true
+		out = append(out, DiskInfo{Mount: mount, Total: usage.Total, Used: usage.Used})
+		if len(out) >= 8 {
+			break
+		}
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Mount < out[j].Mount })
+	return out
 }

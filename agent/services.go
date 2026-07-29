@@ -107,9 +107,18 @@ type Package struct {
 	Source  string `json:"source"` // "pkg" or "bin"
 }
 
+// DiskInfo is one real mounted volume (root, /Volumes/* on macOS, /dev-backed
+// mounts on Linux) so multi-disk machines show every drive.
+type DiskInfo struct {
+	Mount string `json:"mount"`
+	Total uint64 `json:"total"`
+	Used  uint64 `json:"used"`
+}
+
 type Services struct {
 	CollectedAt int64      `json:"collected_at"`
 	Restricted  bool       `json:"restricted"`
+	Disks       []DiskInfo `json:"disks"`
 	Listeners   []Listener `json:"listeners"`
 	Websites    []Website  `json:"websites"`
 	Docker      Docker     `json:"docker"`
@@ -168,6 +177,7 @@ func (s *serviceCollector) collect() {
 	result := Services{
 		CollectedAt: time.Now().Unix(),
 		Restricted:  restricted,
+		Disks:       collectDisks(),
 		Listeners:   listeners,
 		Websites:    probeWebsites(collectWebsites()),
 		Docker:      docker,

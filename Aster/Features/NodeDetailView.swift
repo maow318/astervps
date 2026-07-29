@@ -32,6 +32,7 @@ struct NodeDetailView: View {
       .task(id: nodeID) {
         while !Task.isCancelled {
           await store.loadSensors(for: nodeID)
+          await store.loadServices(for: nodeID)
           try? await Task.sleep(for: .seconds(15))
         }
       }
@@ -90,6 +91,37 @@ struct NodeDetailView: View {
               VStack(alignment: .leading, spacing: AsterSpacing.sm) {
                 Text(L.text("chart.storage")).font(AsterTypography.sectionTitle)
                 ProgressBarMetric(value: node.metrics.diskUsage / 100, label: L.text("metric.disk"))
+                if case .loaded(let services) = store.servicesByNode[nodeID] ?? .loading,
+                  let disks = services.disks, disks.count > 1
+                {
+                  ForEach(disks) { diskInfo in
+                    VStack(alignment: .leading, spacing: 3) {
+                      HStack {
+                        Image(systemName: diskInfo.mount == "/" ? "internaldrive" : "externaldrive")
+                          .font(.system(size: 10))
+                          .foregroundStyle(AsterColor.foregroundSecondary)
+                        Text(diskInfo.displayName)
+                          .font(AsterTypography.caption)
+                        Spacer()
+                        Text(
+                          "\(AsterFormat.bytes(diskInfo.used)) / \(AsterFormat.bytes(diskInfo.total))"
+                        )
+                        .font(AsterTypography.caption.monospacedDigit())
+                        .foregroundStyle(AsterColor.foregroundSecondary)
+                      }
+                      GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                          Capsule().fill(AsterColor.chartPalette[3].opacity(0.16))
+                          Capsule().fill(
+                            diskInfo.fraction >= 0.9 ? AsterColor.warning : AsterColor.chartPalette[3]
+                          )
+                          .frame(width: geo.size.width * min(diskInfo.fraction, 1))
+                        }
+                      }
+                      .frame(height: 4)
+                    }
+                  }
+                }
                 detailLine(
                   L.text("metric.disk"),
                   "\(AsterFormat.bytes(node.metrics.diskUsedBytes)) / \(AsterFormat.bytes(node.metrics.diskTotalBytes))"
@@ -132,6 +164,32 @@ struct NodeDetailView: View {
   private func infoCard(_ node: NodeSnapshot) -> some View {
     let meta = store.metaByMachine[nodeID]
     return GlassCard {
+      VStack(alignment: .leading, spacing: AsterSpacing.md) {
+      HStack(spacing: AsterSpacing.md) {
+        ZStack {
+          RoundedRectangle(cornerRadius: 13, style: .continuous)
+            .fill(Color.primary.opacity(0.055))
+            .overlay {
+              RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+            }
+          Image(systemName: meta?.deviceSymbol ?? "server.rack")
+            .font(.system(size: 26, weight: .medium))
+            .foregroundStyle(AsterColor.accent)
+        }
+        .frame(width: 58, height: 58)
+        VStack(alignment: .leading, spacing: 3) {
+          Text(node.info.name)
+            .font(.system(size: 21, weight: .bold, design: .rounded))
+          Text(
+            [meta?.osPretty ?? node.info.operatingSystem, meta?.modelIdentifier]
+              .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+          )
+          .font(AsterTypography.label)
+          .foregroundStyle(AsterColor.foregroundSecondary)
+        }
+        Spacer()
+      }
       LazyVGrid(
         columns: [GridItem(.adaptive(minimum: 160), spacing: AsterSpacing.md, alignment: .leading)],
         alignment: .leading, spacing: AsterSpacing.sm
@@ -145,6 +203,7 @@ struct NodeDetailView: View {
           meta.map { String(format: L.text("hardware.format"), $0.cpuModel, $0.cpuCores) }
             ?? (node.info.hardware.isEmpty ? "—" : node.info.hardware))
         infoCell(L.text("meta.agent"), meta.map { "v\($0.agentVersion)" } ?? "—")
+      }
       }.frame(maxWidth: .infinity, alignment: .leading)
     }
   }

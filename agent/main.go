@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const version = "0.5.0"
+const version = "0.6.0"
 
 func main() {
 	listen := flag.String("listen", ":9977", "HTTPS listen address")

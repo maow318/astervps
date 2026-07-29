@@ -100,9 +100,23 @@ struct AgentPackage: Decodable, Hashable, Identifiable {
   var id: String { name }
 }
 
+struct AgentDisk: Decodable, Hashable, Identifiable {
+  let mount: String
+  let total: Double
+  let used: Double
+  var id: String { mount }
+  var fraction: Double { total > 0 ? used / total : 0 }
+  /// "/" is the system volume; external drives show their volume name.
+  var displayName: String {
+    mount == "/" ? "/" : (mount as NSString).lastPathComponent
+  }
+}
+
 struct AgentServices: Decodable, Hashable {
   let collectedAt: Int64
   let restricted: Bool
+  /// Absent on agents older than 0.6.0.
+  let disks: [AgentDisk]?
   let listeners: [AgentListener]
   let websites: [AgentWebsite]
   let docker: AgentDocker

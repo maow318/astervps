@@ -235,6 +235,10 @@ import Foundation
     AgentServices(
       collectedAt: Int64(Date.now.timeIntervalSince1970) - 22,
       restricted: false,
+      disks: [
+        AgentDisk(mount: "/", total: 494_380_000_000, used: 189_850_000_000),
+        AgentDisk(mount: "/Volumes/闪迪", total: 1_000_000_000_000, used: 48_040_000_000),
+      ],
       listeners: [
         AgentListener(
           port: 443, protocol: "tcp", address: "0.0.0.0", scope: "public", pid: 612,

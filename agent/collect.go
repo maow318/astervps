@@ -35,6 +35,9 @@ type Meta struct {
 	CPUCores               int    `json:"cpu_cores"`
 	AgentVersion           string `json:"agent_version"`
 	CollectIntervalSeconds int    `json:"collect_interval_seconds"`
+	// Device identity for the dashboard hero (agent >= 0.6.0).
+	ModelIdentifier string `json:"model_identifier,omitempty"`
+	OSPretty        string `json:"os_pretty,omitempty"`
 }
 
 type Memory struct {
@@ -176,6 +179,8 @@ func collectMeta() Meta {
 		CPUCores:               runtime.NumCPU(),
 		AgentVersion:           version,
 		CollectIntervalSeconds: int(fastInterval / time.Second),
+		ModelIdentifier:        modelIdentifier(),
+		OSPretty:               osPrettyName(hostInfo.Platform, hostInfo.PlatformVersion),
 	}
 }
 

@@ -104,6 +104,21 @@ struct AgentMeta: Decodable {
   let cpuCores: Int
   let agentVersion: String
   let collectIntervalSeconds: Int
+  /// Agent >= 0.6.0: "Mac16,10" and "macOS 26.5.2" / "Ubuntu 22.04".
+  let modelIdentifier: String?
+  let osPretty: String?
+
+  /// SF Symbol for the dashboard hero, picked from what the host reports.
+  var deviceSymbol: String {
+    let model = (modelIdentifier ?? "").lowercased()
+    if model.contains("book") { return "laptopcomputer" }
+    if model.contains("macmini") || model.contains("mac1") { return "macmini.fill" }
+    switch os.lowercased() {
+    case "darwin", "macos": return "desktopcomputer"
+    case "windows": return "pc"
+    default: return "server.rack"
+    }
+  }
 }
 
 struct AgentPair: Decodable {

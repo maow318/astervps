@@ -26,6 +26,11 @@ extension MonitorStore {
     }
   }
 
+  /// True for the machine this app launched its bundled agent on.
+  func isLocalNode(_ nodeID: UUID) -> Bool {
+    machines.first(where: { $0.id == nodeID })?.endpoint == LocalAgentManager.localEndpoint
+  }
+
   /// Thermal sensors for the node detail overview, throttled to 15 s.
   func loadSensors(for nodeID: UUID) async {
     guard let client = clients[nodeID] else { return }

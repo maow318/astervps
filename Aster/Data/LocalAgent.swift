@@ -9,7 +9,10 @@ import Foundation
 final class LocalAgentManager {
   static let shared = LocalAgentManager()
 
-  private static let endpoint = "https://127.0.0.1:9976"
+  /// Shared so views can tell the local node apart (e.g. real app icons for
+  /// local processes).
+  static let localEndpoint = "https://127.0.0.1:9976"
+  private static var endpoint: String { localEndpoint }
   private static let tokenKey = "aster.localAgentToken"
 
   private var process: Process?

@@ -231,6 +231,7 @@ private struct NodeRow: View {
         guard !Task.isCancelled, hovered else { return }
         showProcesses = true
         await store.loadTopProcesses(for: node.id)
+        await store.loadSensors(for: node.id)
       } else {
         showProcesses = false
       }
@@ -282,6 +283,9 @@ struct NodeInsightPopover: View {
         header(node)
         chartGrid(node)
         vitalsLine(node)
+        if let sensors = store.sensorsByNode[nodeID] ?? nil, sensors.available {
+          thermalLine(sensors)
+        }
         Divider().opacity(0.4)
         processSection
       }
@@ -357,6 +361,24 @@ struct NodeInsightPopover: View {
     .lineLimit(1)
   }
 
+  private func thermalLine(_ sensors: AgentSensors) -> some View {
+    HStack(spacing: AsterSpacing.xs) {
+      if let fan = sensors.fans.first {
+        Label("\(Int(fan.rpm)) RPM", systemImage: "fan.fill")
+          .foregroundStyle(AsterColor.chartPalette[1])
+      }
+      ForEach(sensors.groupedTemps.prefix(3), id: \.group) { group in
+        Text(verbatim: "\(L.text(group.group)) \(Int(group.max.rounded()))°")
+          .foregroundStyle(
+            group.max >= 80
+              ? AsterColor.offline : group.max >= 60 ? AsterColor.warning : AsterColor.foregroundSecondary)
+      }
+      Spacer(minLength: 0)
+    }
+    .font(.system(size: 9.5, weight: .medium, design: .rounded).monospacedDigit())
+    .lineLimit(1)
+  }
+
   @ViewBuilder private var processSection: some View {
     HStack(spacing: 5) {
       Image(systemName: "chart.bar.fill")
@@ -384,9 +406,10 @@ struct NodeInsightPopover: View {
     case .some(.some(let processes)):
       let ranked = Array(processes.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(8))
       let memCeiling = max(ranked.map(\.memBytes).max() ?? 1, 1)
+      let local = store.isLocalNode(nodeID)
       VStack(spacing: 5) {
         ForEach(ranked) { proc in
-          ProcessRow(process: proc, memCeiling: memCeiling)
+          ProcessRow(process: proc, memCeiling: memCeiling, isLocal: local)
         }
       }
       if ranked.isEmpty {
@@ -405,12 +428,23 @@ private struct ProcessRow: View {
 
   let process: AgentProcess
   let memCeiling: Double
+  var isLocal = false
 
   var body: some View {
     HStack(spacing: AsterSpacing.xs) {
-      RemoteIconTile(
-        slugSource: process.name,
-        fallback: ServiceGlyph.for(port: 0, process: process.name), size: 20)
+      // On the local machine the pid is ours to ask the system about — real
+      // app icons, exactly what Activity Monitor shows.
+      if isLocal, let icon = NSRunningApplication(processIdentifier: pid_t(process.pid))?.icon {
+        Image(nsImage: icon)
+          .resizable()
+          .interpolation(.high)
+          .scaledToFit()
+          .frame(width: 20, height: 20)
+      } else {
+        RemoteIconTile(
+          slugSource: process.name,
+          fallback: ServiceGlyph.for(port: 0, process: process.name), size: 20)
+      }
       VStack(alignment: .leading, spacing: 0) {
         Text(process.name)
           .font(.system(size: 11, weight: .medium, design: .rounded))

@@ -57,6 +57,7 @@ final class MonitorStore {
     for machine in machines {
       ensureGeo(for: machine.id)
     }
+    await LocalAgentManager.shared.startIfNeeded(store: self)
   }
 
   /// Nodes not marked hidden; what the list pages render.

@@ -8,8 +8,22 @@ struct AddMachineSheet: View {
   @Environment(MonitorStore.self) private var store
   @Environment(\.dismiss) private var dismiss
 
+  enum DeployMode: String, CaseIterable, Identifiable {
+    case ip, domain
+    var id: String { rawValue }
+  }
+
+  enum ProxyChoice: String, CaseIterable, Identifiable {
+    case auto, caddy, nginx
+    var id: String { rawValue }
+    var flag: String? { self == .auto ? nil : rawValue }
+  }
+
   @State private var step = 1
   @State private var name = ""
+  @State private var mode: DeployMode = .ip
+  @State private var domain = ""
+  @State private var proxy: ProxyChoice = .auto
   @State private var token = AddMachineSheet.generateToken()
   @State private var endpoint = ""
   @State private var fingerprint: String?
@@ -30,7 +44,7 @@ struct AddMachineSheet: View {
       footer
     }
     .padding(AsterSpacing.lg)
-    .frame(width: 560, height: 480)
+    .frame(width: 560, height: mode == .domain ? 600 : 500)
   }
 
   // MARK: - Step 1: token + install command
@@ -41,6 +55,29 @@ struct AddMachineSheet: View {
         .foregroundStyle(AsterColor.foregroundSecondary)
       TextField(L.text("add.name"), text: $name)
         .textFieldStyle(.roundedBorder)
+      Picker(L.text("add.mode"), selection: $mode) {
+        Text(L.text("add.mode.ip")).tag(DeployMode.ip)
+        Text(L.text("add.mode.domain")).tag(DeployMode.domain)
+      }
+      .pickerStyle(.segmented)
+      .labelsHidden()
+      Text(L.text(mode == .ip ? "add.mode.ipHint" : "add.mode.domainHint"))
+        .font(AsterTypography.caption)
+        .foregroundStyle(AsterColor.foregroundSecondary)
+      if mode == .domain {
+        Label(L.text("add.domainDNS"), systemImage: "exclamationmark.triangle")
+          .font(AsterTypography.caption)
+          .foregroundStyle(AsterColor.warning)
+        TextField(L.text("add.domain"), text: $domain)
+          .textFieldStyle(.roundedBorder)
+          .disableAutocorrection(true)
+        Picker(L.text("add.proxy"), selection: $proxy) {
+          Text(L.text("add.proxy.auto")).tag(ProxyChoice.auto)
+          Text(verbatim: "Caddy").tag(ProxyChoice.caddy)
+          Text(verbatim: "nginx").tag(ProxyChoice.nginx)
+        }
+        .pickerStyle(.segmented)
+      }
       copyField(label: L.text("add.token"), value: token)
       copyField(label: L.text("add.installCommand"), value: installCommand)
       DisclosureGroup(L.text("add.manualTitle"), isExpanded: $showManual) {
@@ -74,13 +111,19 @@ struct AddMachineSheet: View {
       if let fingerprint {
         GlassCard {
           VStack(alignment: .leading, spacing: AsterSpacing.sm) {
-            Text(L.text("add.fingerprintTitle")).font(AsterTypography.sectionTitle)
-            Text(formattedFingerprint(fingerprint))
-              .font(.system(size: 12, design: .monospaced))
-              .textSelection(.enabled)
-            Text(L.text("add.fingerprintHint"))
-              .font(AsterTypography.caption)
-              .foregroundStyle(AsterColor.foregroundSecondary)
+            if fingerprint == AgentClient.systemTrustSentinel {
+              Label(L.text("add.caVerified"), systemImage: "checkmark.seal.fill")
+                .font(AsterTypography.sectionTitle)
+                .foregroundStyle(AsterColor.online)
+            } else {
+              Text(L.text("add.fingerprintTitle")).font(AsterTypography.sectionTitle)
+              Text(formattedFingerprint(fingerprint))
+                .font(.system(size: 12, design: .monospaced))
+                .textSelection(.enabled)
+              Text(L.text("add.fingerprintHint"))
+                .font(AsterTypography.caption)
+                .foregroundStyle(AsterColor.foregroundSecondary)
+            }
             if meta == nil {
               Button(L.text("add.confirm")) { confirmAndVerify() }
                 .disabled(isBusy)
@@ -118,9 +161,16 @@ struct AddMachineSheet: View {
         }
       }
       if step == 1 {
-        Button(L.text("add.next")) { step = 2 }
-          .buttonStyle(.borderedProminent)
-          .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+        Button(L.text("add.next")) {
+          if mode == .domain {
+            endpoint = "https://\(domain.trimmingCharacters(in: .whitespaces))"
+          }
+          step = 2
+        }
+        .buttonStyle(.borderedProminent)
+        .disabled(
+          name.trimmingCharacters(in: .whitespaces).isEmpty
+            || (mode == .domain && domain.trimmingCharacters(in: .whitespaces).isEmpty))
       } else {
         Button(L.text("add.save")) { save() }
           .buttonStyle(.borderedProminent)
@@ -150,6 +200,13 @@ struct AddMachineSheet: View {
       defer { isBusy = false }
       do {
         let probe = try await AgentClient.probeFingerprint(endpoint: trimmed)
+        if mode == .domain && !probe.caVerified {
+          // Hard block: a self-signed answer means DNS/proxy/cert are not
+          // ready yet. Pinning that interim certificate would freeze a broken
+          // state, so we refuse instead of degrading to TOFU.
+          errorMessage = L.text("add.domainNotReady")
+          return
+        }
         // A CA-validated chain (domain behind a real certificate) needs no
         // pin: store the sentinel so renewals never break the connection.
         fingerprint = probe.caVerified ? AgentClient.systemTrustSentinel : probe.fingerprint
@@ -185,7 +242,14 @@ struct AddMachineSheet: View {
   // MARK: - Helpers
 
   private var installCommand: String {
-    AgentDistribution.installCommand(token: token) ?? L.text("add.installPending")
+    let command: String?
+    if mode == .domain, !domain.trimmingCharacters(in: .whitespaces).isEmpty {
+      command = AgentDistribution.installCommand(
+        token: token, domain: domain.trimmingCharacters(in: .whitespaces), proxy: proxy.flag)
+    } else {
+      command = AgentDistribution.installCommand(token: token)
+    }
+    return command ?? L.text("add.installPending")
   }
 
   private var systemdUnit: String {

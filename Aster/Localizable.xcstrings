@@ -281,6 +281,23 @@
         }
       }
     },
+    "add.caVerified" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Certificate issued by a trusted CA — verified automatically"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "证书由权威机构签发,已自动信任"
+          }
+        }
+      }
+    },
     "add.confirm" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -294,6 +311,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "确认指纹并连接"
+          }
+        }
+      }
+    },
+    "add.domain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domain (e.g. agent.example.com)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "域名(如 agent.example.com)"
+          }
+        }
+      }
+    },
+    "add.domainDNS" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "First add a DNS A record pointing this domain at the server IP; Cloudflare users can enable the proxy to hide the IP."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请先在 DNS 服务商添加 A 记录,把该域名指向服务器 IP;托管在 Cloudflare 可开启代理隐藏 IP。"
+          }
+        }
+      }
+    },
+    "add.domainNotReady" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The domain certificate is not ready yet — make sure the install script finished and DNS has propagated, then retry."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "域名证书还未就绪:请确认安装脚本已执行完成、DNS 已生效后重试。"
           }
         }
       }
@@ -451,6 +519,91 @@
         }
       }
     },
+    "add.mode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deployment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "部署方式"
+          }
+        }
+      }
+    },
+    "add.mode.domain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domain (recommended)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "域名(推荐)"
+          }
+        }
+      }
+    },
+    "add.mode.domainHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traffic looks like an ordinary website — needs a domain already pointing at the server. Firewall-resistant."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "流量伪装成普通网站,抗防火墙封锁;需要一个已解析到服务器的域名。"
+          }
+        }
+      }
+    },
+    "add.mode.ip" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direct IP"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "裸 IP"
+          }
+        }
+      }
+    },
+    "add.mode.ipHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connects straight to IP:port — online in a minute, but censorship firewalls may block it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "直接连接 IP 和端口,一分钟上线;在有防火墙审查的网络环境可能被封锁。"
+          }
+        }
+      }
+    },
     "add.name" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -481,6 +634,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "下一步"
+          }
+        }
+      }
+    },
+    "add.proxy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reverse proxy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "反向代理"
+          }
+        }
+      }
+    },
+    "add.proxy.auto" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动"
           }
         }
       }
@@ -1671,6 +1858,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "年"
+          }
+        }
+      }
+    },
+    "delete.copyAndRemove" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy uninstall command & remove"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制卸载命令并删除"
+          }
+        }
+      }
+    },
+    "delete.uninstallHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To also remove the agent from the server, copy the uninstall command and run it there."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如需同时卸载服务器上的 agent,可选择复制卸载命令,然后到服务器上执行。"
           }
         }
       }

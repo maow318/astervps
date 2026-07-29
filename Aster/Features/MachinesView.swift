@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// Machine management as a first-class sidebar page, styled like the rest of
@@ -38,12 +39,24 @@ struct MachinesView: View {
         get: { pendingDeletion != nil },
         set: { if !$0 { pendingDeletion = nil } })
     ) {
+      if let uninstall = AgentDistribution.uninstallCommand {
+        Button(L.text("delete.copyAndRemove"), role: .destructive) {
+          NSPasteboard.general.clearContents()
+          NSPasteboard.general.setString(uninstall, forType: .string)
+          if let machine = pendingDeletion {
+            store.removeMachine(machine.id)
+          }
+          pendingDeletion = nil
+        }
+      }
       Button(L.text("machines.delete"), role: .destructive) {
         if let machine = pendingDeletion {
           store.removeMachine(machine.id)
         }
         pendingDeletion = nil
       }
+    } message: {
+      Text(L.text("delete.uninstallHint"))
     }
     .sheet(item: $editTarget) { machine in
       MachineEditSheet(machine: machine)

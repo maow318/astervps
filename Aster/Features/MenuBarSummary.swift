@@ -233,7 +233,7 @@ private struct NodeRow: View {
       }
     }
     .popover(isPresented: $showProcesses, arrowEdge: .trailing) {
-      ProcessPopover(nodeID: node.id, nodeName: node.info.name).environment(store)
+      NodeInsightPopover(nodeID: node.id).environment(store)
     }
   }
 
@@ -265,58 +265,174 @@ private struct NodeRow: View {
   }
 }
 
-// MARK: - Top-process popover
+// MARK: - Node insight popover
 
-private struct ProcessPopover: View {
+/// Full machine panel shown on hover: identity, live gauges for CPU, memory,
+/// swap and disk, the network/connection line, then the top-process ranking.
+struct NodeInsightPopover: View {
   @Environment(MonitorStore.self) private var store
   let nodeID: UUID
-  let nodeName: String
 
   var body: some View {
-    VStack(alignment: .leading, spacing: AsterSpacing.xs) {
-      HStack(spacing: 5) {
-        Image(systemName: "chart.bar.fill")
-          .font(.system(size: 9, weight: .semibold))
-          .foregroundStyle(AsterColor.accent)
-        Text("\(nodeName) · \(L.text("menu.processes"))")
-          .font(.system(size: 11, weight: .semibold, design: .rounded))
+    if let node = store.node(id: nodeID) {
+      VStack(alignment: .leading, spacing: AsterSpacing.sm) {
+        header(node)
+        gaugeGrid(node)
+        vitalsLine(node)
+        Divider().opacity(0.4)
+        processSection
       }
-      switch store.processesByNode[nodeID] {
-      case .none:
-        ProgressView().controlSize(.small).frame(maxWidth: .infinity)
-          .padding(.vertical, AsterSpacing.xs)
-      case .some(.none):
-        Text(L.text("menu.processesOld"))
-          .font(AsterTypography.caption)
+      .padding(AsterSpacing.sm)
+      .frame(width: 290)
+    }
+  }
+
+  private func header(_ node: NodeSnapshot) -> some View {
+    HStack(spacing: 6) {
+      Text(node.info.flag).font(.system(size: 13))
+      Text(node.info.name).font(.system(size: 13, weight: .bold, design: .rounded))
+      StatusDot(status: node.info.status, diameter: 6)
+      Spacer(minLength: AsterSpacing.xs)
+      if let host = endpointHost {
+        Text(host)
+          .font(.system(size: 10, design: .rounded).monospacedDigit())
           .foregroundStyle(AsterColor.foregroundSecondary)
-      case .some(.some(let processes)):
-        let ranked = processes.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(8)
-        VStack(spacing: 4) {
-          ForEach(Array(ranked)) { proc in
-            HStack(spacing: AsterSpacing.xs) {
-              Text(proc.name)
-                .font(.system(size: 11, weight: .medium, design: .rounded))
-                .lineLimit(1)
-                .truncationMode(.middle)
-              Spacer(minLength: AsterSpacing.xs)
-              Text(String(format: "%.1f%%", proc.cpuPercent))
-                .font(.system(size: 10.5, weight: .semibold, design: .rounded).monospacedDigit())
-                .frame(width: 46, alignment: .trailing)
-              Text(AsterFormat.bytes(proc.memBytes))
-                .font(.system(size: 10, design: .rounded).monospacedDigit())
-                .foregroundStyle(AsterColor.foregroundSecondary)
-                .frame(width: 62, alignment: .trailing)
-            }
-          }
-        }
-        if ranked.isEmpty {
-          Text("—").font(AsterTypography.caption)
-            .foregroundStyle(AsterColor.foregroundSecondary)
-        }
+          .lineLimit(1)
+          .truncationMode(.middle)
       }
     }
-    .padding(AsterSpacing.sm)
-    .frame(width: 250)
+  }
+
+  private var endpointHost: String? {
+    guard let machine = store.machines.first(where: { $0.id == nodeID }) else { return nil }
+    return URL(string: machine.endpoint)?.host ?? machine.endpoint
+  }
+
+  private func gaugeGrid(_ node: NodeSnapshot) -> some View {
+    let metrics = node.metrics
+    return LazyVGrid(
+      columns: [GridItem(.flexible(), spacing: AsterSpacing.sm), GridItem(.flexible())],
+      spacing: AsterSpacing.xs
+    ) {
+      GaugeCell(
+        label: L.text("metric.cpu"), fraction: metrics.cpuUsage / 100,
+        value: "\(Int(metrics.cpuUsage.rounded()))%",
+        detail: "\(L.text("overview.load")) \(String(format: "%.2f", metrics.loadAverage))",
+        tint: AsterColor.chartPalette[0])
+      GaugeCell(
+        label: L.text("metric.memory"), fraction: metrics.memoryUsage / 100,
+        value: "\(Int(metrics.memoryUsage.rounded()))%",
+        detail:
+          "\(AsterFormat.bytes(metrics.memoryUsedBytes)) / \(AsterFormat.bytes(metrics.memoryTotalBytes))",
+        tint: AsterColor.chartPalette[1])
+      GaugeCell(
+        label: L.text("metric.swap"),
+        fraction: metrics.swapTotalBytes > 0 ? metrics.swapUsage / 100 : 0,
+        value: metrics.swapTotalBytes > 0 ? "\(Int(metrics.swapUsage.rounded()))%" : L.text("swap.off"),
+        detail: metrics.swapTotalBytes > 0
+          ? "\(AsterFormat.bytes(metrics.swapUsedBytes)) / \(AsterFormat.bytes(metrics.swapTotalBytes))"
+          : " ",
+        tint: AsterColor.chartPalette[4])
+      GaugeCell(
+        label: L.text("metric.disk"), fraction: metrics.diskUsage / 100,
+        value: "\(Int(metrics.diskUsage.rounded()))%",
+        detail:
+          "\(AsterFormat.bytes(metrics.diskUsedBytes)) / \(AsterFormat.bytes(metrics.diskTotalBytes))",
+        tint: AsterColor.chartPalette[2])
+    }
+  }
+
+  private func vitalsLine(_ node: NodeSnapshot) -> some View {
+    let up = AsterFormat.rate(node.metrics.uploadBytesPerSecond)
+    let down = AsterFormat.rate(node.metrics.downloadBytesPerSecond)
+    return HStack(spacing: AsterSpacing.xs) {
+      Text(verbatim: "↑ \(up.value) \(up.unit)")
+      Text(verbatim: "↓ \(down.value) \(down.unit)")
+      Spacer(minLength: AsterSpacing.xxs)
+      Text("\(L.text("metric.connections")) \(node.metrics.connectionCount)")
+      Text("\(L.text("metric.processes")) \(node.metrics.processCount)")
+    }
+    .font(.system(size: 9.5, design: .rounded).monospacedDigit())
+    .foregroundStyle(AsterColor.foregroundSecondary)
+    .lineLimit(1)
+  }
+
+  @ViewBuilder private var processSection: some View {
+    HStack(spacing: 5) {
+      Image(systemName: "chart.bar.fill")
+        .font(.system(size: 9, weight: .semibold))
+        .foregroundStyle(AsterColor.accent)
+      Text(L.text("menu.processes"))
+        .font(.system(size: 11, weight: .semibold, design: .rounded))
+    }
+    switch store.processesByNode[nodeID] {
+    case .none:
+      ProgressView().controlSize(.small).frame(maxWidth: .infinity)
+        .padding(.vertical, AsterSpacing.xs)
+    case .some(.none):
+      Text(L.text("menu.processesOld"))
+        .font(AsterTypography.caption)
+        .foregroundStyle(AsterColor.foregroundSecondary)
+    case .some(.some(let processes)):
+      let ranked = processes.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(8)
+      VStack(spacing: 4) {
+        ForEach(Array(ranked)) { proc in
+          HStack(spacing: AsterSpacing.xs) {
+            Text(proc.name)
+              .font(.system(size: 11, weight: .medium, design: .rounded))
+              .lineLimit(1)
+              .truncationMode(.middle)
+            Spacer(minLength: AsterSpacing.xs)
+            Text(String(format: "%.1f%%", proc.cpuPercent))
+              .font(.system(size: 10.5, weight: .semibold, design: .rounded).monospacedDigit())
+              .frame(width: 46, alignment: .trailing)
+            Text(AsterFormat.bytes(proc.memBytes))
+              .font(.system(size: 10, design: .rounded).monospacedDigit())
+              .foregroundStyle(AsterColor.foregroundSecondary)
+              .frame(width: 62, alignment: .trailing)
+          }
+        }
+      }
+      if ranked.isEmpty {
+        Text("—").font(AsterTypography.caption)
+          .foregroundStyle(AsterColor.foregroundSecondary)
+      }
+    }
+  }
+}
+
+private struct GaugeCell: View {
+  let label: String
+  let fraction: Double
+  let value: String
+  let detail: String
+  let tint: Color
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 3) {
+      HStack {
+        Text(label).font(.system(size: 9)).foregroundStyle(AsterColor.foregroundSecondary)
+        Spacer()
+        Text(value)
+          .font(.system(size: 10.5, weight: .semibold, design: .rounded).monospacedDigit())
+          .contentTransition(.numericText())
+      }
+      GeometryReader { geo in
+        ZStack(alignment: .leading) {
+          Capsule().fill(tint.opacity(0.16))
+          Capsule().fill(fraction >= 0.85 ? AsterColor.warning : tint)
+            .frame(width: geo.size.width * min(max(fraction, 0), 1))
+        }
+      }
+      .frame(height: 3.5)
+      Text(detail)
+        .font(.system(size: 8.5, design: .rounded).monospacedDigit())
+        .foregroundStyle(AsterColor.foregroundSecondary.opacity(0.85))
+        .lineLimit(1)
+    }
+    .padding(7)
+    .background(
+      Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
   }
 }
 

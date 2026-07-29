@@ -59,8 +59,28 @@ final class LocalAgentManager {
     }
   }
 
+  /// Xcode's Stop (SIGKILL) orphans the child, which then keeps serving an
+  /// outdated agent on the port forever. Always clear stale instances so the
+  /// bundled (current) version is the one that answers.
+  private func killStaleAgents() {
+    let pgrep = Process()
+    pgrep.executableURL = URL(fileURLWithPath: "/usr/bin/pgrep")
+    pgrep.arguments = ["-f", "aster-agent --listen 127.0.0.1:9976"]
+    let pipe = Pipe()
+    pgrep.standardOutput = pipe
+    guard (try? pgrep.run()) != nil else { return }
+    pgrep.waitUntilExit()
+    let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+    for line in output.split(separator: "\n") {
+      if let pid = Int32(line.trimmingCharacters(in: .whitespaces)) {
+        kill(pid, SIGTERM)
+      }
+    }
+  }
+
   private func spawn(binary: URL, token: String) {
     guard process == nil else { return }
+    killStaleAgents()
     let base =
       FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
       ?? FileManager.default.temporaryDirectory

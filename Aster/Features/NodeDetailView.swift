@@ -81,12 +81,16 @@ struct NodeDetailView: View {
                 (L.text("metric.download"), node.history.download, AsterColor.chartPalette[1]),
                 (L.text("metric.upload"), node.history.upload, AsterColor.chartPalette[4]),
               ], unit: "MB/s")
-            DetailChart(
-              title: L.text("chart.diskIO"),
-              series: [
-                (L.text("metric.read"), node.history.diskRead, AsterColor.chartPalette[2]),
-                (L.text("metric.write"), node.history.diskWrite, AsterColor.chartPalette[3]),
-              ], unit: "MB/s")
+            // Agents do not report disk I/O rates yet; an empty chart reads as
+            // broken, so the card only appears when there is data (mock/demo).
+            if !node.history.diskRead.isEmpty || !node.history.diskWrite.isEmpty {
+              DetailChart(
+                title: L.text("chart.diskIO"),
+                series: [
+                  (L.text("metric.read"), node.history.diskRead, AsterColor.chartPalette[2]),
+                  (L.text("metric.write"), node.history.diskWrite, AsterColor.chartPalette[3]),
+                ], unit: "MB/s")
+            }
             GlassCard {
               VStack(alignment: .leading, spacing: AsterSpacing.sm) {
                 Text(L.text("chart.storage")).font(AsterTypography.sectionTitle)
@@ -209,7 +213,7 @@ struct NodeDetailView: View {
         alignment: .leading, spacing: AsterSpacing.sm
       ) {
         infoCell(L.text("meta.hostname"), meta?.hostname ?? node.info.name)
-        infoCell(L.text("meta.os"), meta?.os ?? node.info.operatingSystem)
+        infoCell(L.text("meta.os"), meta?.osPretty ?? meta?.os ?? node.info.operatingSystem)
         infoCell(L.text("meta.kernel"), meta?.kernel ?? "—")
         infoCell(L.text("meta.arch"), meta?.architecture ?? "—")
         infoCell(

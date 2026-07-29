@@ -202,6 +202,20 @@ import Foundation
     Array((samples + [MetricSample(id: UUID(), date: .now, value: value)]).suffix(28))
   }
 
+  /// Sample /v1/sensors payload (Mac-mini-like SMC readout).
+  static func sampleSensors() -> AgentSensors {
+    AgentSensors(
+      available: true,
+      fans: [AgentFan(label: "Fan 1", rpm: 1001)],
+      temps: [
+        AgentTemp(label: "TC0a", celsius: 52.1), AgentTemp(label: "TCMz", celsius: 79.0),
+        AgentTemp(label: "TG0b", celsius: 48.6), AgentTemp(label: "TH0a", celsius: 44.2),
+        AgentTemp(label: "TH0b", celsius: 44.3), AgentTemp(label: "TMVR", celsius: 53.3),
+        AgentTemp(label: "TPD0", celsius: 58.4), AgentTemp(label: "TW0P", celsius: 40.1),
+        AgentTemp(label: "Ta00", celsius: 46.0),
+      ])
+  }
+
   /// Sample /v1/processes payload for the menu-bar hover popover.
   static func sampleProcesses() -> [AgentProcess] {
     [

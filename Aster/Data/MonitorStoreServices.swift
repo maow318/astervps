@@ -26,6 +26,22 @@ extension MonitorStore {
     }
   }
 
+  /// Thermal sensors for the node detail overview, throttled to 15 s.
+  func loadSensors(for nodeID: UUID) async {
+    guard let client = clients[nodeID] else { return }
+    if let fetched = sensorsFetchedAt[nodeID], Date.now.timeIntervalSince(fetched) < 15 {
+      return
+    }
+    sensorsFetchedAt[nodeID] = .now
+    do {
+      sensorsByNode[nodeID] = try await client.sensors()
+    } catch AgentError.badResponse(404) {
+      sensorsByNode[nodeID] = AgentSensors?.none
+    } catch {
+      // Keep the previous snapshot on transient errors.
+    }
+  }
+
   /// Top processes for the menu-bar hover popover, throttled to the agent's
   /// own 10 s refresh cadence.
   func loadTopProcesses(for nodeID: UUID) async {

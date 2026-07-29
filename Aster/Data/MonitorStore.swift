@@ -32,6 +32,10 @@ final class MonitorStore {
   /// agent predates /v1/processes.
   var processesByNode: [UUID: [AgentProcess]?] = [:]
   var processesFetchedAt: [UUID: Date] = [:]
+  /// Thermal sensors (nil = agent too old or endpoint failed; available=false
+  /// means "a VM with nothing to report" — both hide the card).
+  var sensorsByNode: [UUID: AgentSensors?] = [:]
+  var sensorsFetchedAt: [UUID: Date] = [:]
   /// Sidebar groups derive from machine group names (see extension).
   var groupIDByName: [String: UUID] = [:]
 
@@ -131,6 +135,7 @@ final class MonitorStore {
       for node in store.nodes.prefix(2) {
         store.servicesByNode[node.id] = .loaded(MockDataSource.sampleServices())
         store.processesByNode[node.id] = MockDataSource.sampleProcesses()
+        store.sensorsByNode[node.id] = MockDataSource.sampleSensors()
       }
       return store
     }

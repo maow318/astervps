@@ -61,6 +61,10 @@ final class AgentClient {
     try await get("/v1/processes")
   }
 
+  func sensors() async throws -> AgentSensors {
+    try await get("/v1/sensors")
+  }
+
   func services(forceRefresh: Bool = false) async throws -> AgentServices {
     try await get(
       "/v1/services",
@@ -132,6 +136,8 @@ struct AgentLoad: Decodable {
 struct AgentMetrics: Decodable {
   let timestamp: Int64
   let cpuUsage: Double
+  /// Absent on agents older than 0.5.0.
+  let steal: Double?
   let memory: AgentPair
   let swap: AgentPair
   let disk: AgentPair
@@ -144,6 +150,7 @@ struct AgentMetrics: Decodable {
   var nodeMetrics: NodeMetrics {
     NodeMetrics(
       cpuUsage: cpuUsage,
+      stealPercent: steal ?? 0,
       memoryUsage: memory.percentage,
       swapUsage: swap.percentage,
       diskUsage: disk.percentage,

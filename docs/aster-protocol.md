@@ -1,7 +1,7 @@
 # Aster Agent Protocol v1
 
 All endpoints require `Authorization: Bearer <token>` and are available only over HTTPS.
-Values are JSON `snake_case`; byte quantities are bytes and percentages use `0…100`.
+Values are JSON `snake_case`; byte quantities are bytes and percentages use `0…100`. Since 0.5.0 `/v1/metrics` also carries `steal` — the hypervisor-stolen CPU share (Linux guests only), the canonical oversold-host indicator.
 
 | Endpoint | Response |
 | --- | --- |
@@ -9,6 +9,7 @@ Values are JSON `snake_case`; byte quantities are bytes and percentages use `0�
 | `GET /v1/metrics` | The latest complete metric frame. |
 | `GET /v1/history?since=<unix_ts>` | History frames strictly newer than `since`. |
 | `GET /v1/services` | Cached service inspection: listening ports, websites, Docker, systemd, software inventory. `?refresh=1` forces a synchronous re-collect (rate-limited to one per 10 s). |
+| `GET /v1/sensors` | Thermal sensors (agent >= 0.5.0): `{"available":true,"fans":[{"label":"Fan 1","rpm":1001}],"temps":[{"label":"TC0a","celsius":52.1}]}`. Sources: Linux hwmon, macOS AppleSMC, Windows WMI thermal zones. VMs report `available:false`; clients hide the section. |
 | `GET /v1/processes` | Top processes by CPU and memory (agent >= 0.4.0). Refreshed on the 10 s slow cadence; `cpu_percent` is measured over that window, matching `top`. `{"timestamp":…,"processes":[{"pid":612,"name":"nginx","cpu_percent":3.1,"mem_bytes":104857600,"user":"root"}]}` |
 
 ```json

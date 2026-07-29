@@ -20,6 +20,7 @@ func registerHandlers(mux *http.ServeMux, s *server) {
 	mux.HandleFunc("/v1/history", s.historyHandler)
 	mux.HandleFunc("/v1/services", s.servicesHandler)
 	mux.HandleFunc("/v1/processes", s.processesHandler)
+	mux.HandleFunc("/v1/sensors", s.sensorsHandler)
 }
 
 func (s *server) authorized(w http.ResponseWriter, r *http.Request) bool {
@@ -83,6 +84,13 @@ func (s *server) processesHandler(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().Unix(),
 		"processes": processes,
 	})
+}
+
+func (s *server) sensorsHandler(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(w, r) {
+		return
+	}
+	writeJSON(w, http.StatusOK, s.collector.currentSensors())
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

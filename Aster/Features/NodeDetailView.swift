@@ -29,6 +29,12 @@ struct NodeDetailView: View {
         ToolbarItem { StatusDot(status: node.info.status) }
       }
       .task(id: range) { await store.loadHistory(for: nodeID, hours: range.hours) }
+      .task(id: nodeID) {
+        while !Task.isCancelled {
+          await store.loadSensors(for: nodeID)
+          try? await Task.sleep(for: .seconds(15))
+        }
+      }
       .overlay(alignment: .bottom) {
         if let message = store.historyError(for: nodeID) {
           HStack {
@@ -108,7 +114,15 @@ struct NodeDetailView: View {
                     node.metrics.load15))
                 detailLine(L.text("metric.connections"), "\(node.metrics.connectionCount)")
                 detailLine(L.text("metric.processes"), "\(node.metrics.processCount)")
+                if node.metrics.stealPercent > 0.05 {
+                  detailLine(
+                    L.text("metric.steal"),
+                    String(format: "%.1f%%", node.metrics.stealPercent))
+                }
               }
+            }
+            if let sensors = store.sensorsByNode[nodeID] ?? nil, sensors.available {
+              SensorsCard(sensors: sensors)
             }
           }
   }
@@ -206,6 +220,66 @@ struct NodeDetailView: View {
           value: node.metrics.memoryUsage, label: L.text("metric.memory"),
           tint: AsterColor.chartPalette[1])
       }
+    }
+  }
+}
+
+/// Thermal card: fan rows plus temperature groups (max per group, colored by
+/// severity). Shown only when the agent reports real sensors — VMs never do.
+struct SensorsCard: View {
+  let sensors: AgentSensors
+
+  var body: some View {
+    GlassCard {
+      VStack(alignment: .leading, spacing: AsterSpacing.sm) {
+        Text(L.text("sensors.title")).font(AsterTypography.sectionTitle)
+        ForEach(sensors.fans) { fan in
+          HStack(spacing: AsterSpacing.xs) {
+            Image(systemName: "fan.fill")
+              .font(.system(size: 11))
+              .foregroundStyle(AsterColor.chartPalette[1])
+            Text(fan.label).font(AsterTypography.label)
+            Spacer()
+            Text(verbatim: "\(Int(fan.rpm)) RPM")
+              .font(AsterTypography.metric)
+          }
+        }
+        if !sensors.temps.isEmpty {
+          LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 130), spacing: AsterSpacing.xs)],
+            spacing: AsterSpacing.xs
+          ) {
+            ForEach(sensors.groupedTemps, id: \.group) { group in
+              VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                  Text(L.text(group.group))
+                    .font(AsterTypography.caption)
+                    .foregroundStyle(AsterColor.foregroundSecondary)
+                  Spacer()
+                  Text(verbatim: "×\(group.count)")
+                    .font(.system(size: 8.5).monospacedDigit())
+                    .foregroundStyle(AsterColor.foregroundSecondary.opacity(0.6))
+                }
+                Text(verbatim: "\(Int(group.max.rounded()))°C")
+                  .font(AsterTypography.metricMedium)
+                  .foregroundStyle(temperatureColor(group.max))
+              }
+              .padding(AsterSpacing.xs)
+              .background(
+                Color.primary.opacity(0.045),
+                in: RoundedRectangle(cornerRadius: AsterRadius.control, style: .continuous))
+            }
+          }
+        }
+      }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+  }
+
+  private func temperatureColor(_ celsius: Double) -> Color {
+    switch celsius {
+    case ..<60: AsterColor.foregroundPrimary
+    case ..<80: AsterColor.warning
+    default: AsterColor.offline
     }
   }
 }

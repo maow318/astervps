@@ -6,6 +6,7 @@ import UserNotifications
 struct AlertRuntime {
   var cpuHighSince: Date?
   var memoryHighSince: Date?
+  var stealHighSince: Date?
   var diskAlerted = false
   var knownFailedUnits: Set<String> = []
   var restartCounts: [String: Int] = [:]
@@ -47,12 +48,16 @@ extension MonitorStore {
 
     sustained(
       &runtime, since: \.cpuHighSince, node: node, value: node.metrics.cpuUsage,
-      threshold: 90, key: "cpu",
+      threshold: 90, resetBelow: 80, key: "cpu",
       title: "\(L.text("alert.cpu")) \(Int(node.metrics.cpuUsage))%")
     sustained(
       &runtime, since: \.memoryHighSince, node: node, value: node.metrics.memoryUsage,
-      threshold: 92, key: "memory",
+      threshold: 92, resetBelow: 82, key: "memory",
       title: "\(L.text("alert.memory")) \(Int(node.metrics.memoryUsage))%")
+    sustained(
+      &runtime, since: \.stealHighSince, node: node, value: node.metrics.stealPercent,
+      threshold: 10, resetBelow: 5, key: "steal",
+      title: "\(L.text("alert.steal")) \(String(format: "%.1f", node.metrics.stealPercent))%")
 
     if node.metrics.diskUsage >= 90 {
       if !runtime.diskAlerted {
@@ -68,7 +73,8 @@ extension MonitorStore {
 
   private func sustained(
     _ runtime: inout AlertRuntime, since: WritableKeyPath<AlertRuntime, Date?>,
-    node: NodeSnapshot, value: Double, threshold: Double, key: String, title: String
+    node: NodeSnapshot, value: Double, threshold: Double, resetBelow: Double,
+    key: String, title: String
   ) {
     if value >= threshold {
       let start = runtime[keyPath: since] ?? .now
@@ -76,7 +82,7 @@ extension MonitorStore {
       if Date.now.timeIntervalSince(start) >= Self.sustainInterval {
         fire(&runtime, node: node, key: key, severity: .warning, title: title)
       }
-    } else if value < threshold - 10 {
+    } else if value < resetBelow {
       runtime[keyPath: since] = nil
     }
   }

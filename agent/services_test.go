@@ -2,6 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"os"
+
+	"github.com/shirou/gopsutil/v4/cpu"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -290,5 +293,47 @@ func TestRankProcesses(t *testing.T) {
 	}
 	if got := len(rankProcesses(big)); got > 12 {
 		t.Fatalf("cap failed: %d", got)
+	}
+}
+
+func TestReadHwmon(t *testing.T) {
+	root := t.TempDir()
+	chip := root + "/hwmon0"
+	_ = os.MkdirAll(chip, 0o755)
+	_ = os.WriteFile(chip+"/name", []byte("coretemp\n"), 0o644)
+	_ = os.WriteFile(chip+"/temp1_input", []byte("52000\n"), 0o644)
+	_ = os.WriteFile(chip+"/temp1_label", []byte("Package id 0\n"), 0o644)
+	_ = os.WriteFile(chip+"/temp2_input", []byte("-1000\n"), 0o644)
+	_ = os.WriteFile(chip+"/fan1_input", []byte("1240\n"), 0o644)
+	sensors := readHwmon(root)
+	if !sensors.Available {
+		t.Fatal("expected available sensors")
+	}
+	if len(sensors.Temps) != 1 || sensors.Temps[0].Label != "Package id 0" || sensors.Temps[0].Celsius != 52 {
+		t.Fatalf("bad temps: %+v", sensors.Temps)
+	}
+	if len(sensors.Fans) != 1 || sensors.Fans[0].RPM != 1240 {
+		t.Fatalf("bad fans: %+v", sensors.Fans)
+	}
+	if readHwmon(t.TempDir()).Available {
+		t.Fatal("empty dir must be unavailable")
+	}
+}
+
+func TestStealPercent(t *testing.T) {
+	previous := cpu.TimesStat{User: 100, System: 50, Idle: 800, Steal: 10}
+	current := cpu.TimesStat{User: 120, System: 60, Idle: 890, Steal: 20}
+	got := stealPercent(previous, current)
+	if got < 7.6 || got > 7.8 {
+		t.Fatalf("steal = %f, expected ~7.7", got)
+	}
+	if stealPercent(current, current) != 0 {
+		t.Fatal("no delta must be 0")
+	}
+}
+
+func TestKelvinTenths(t *testing.T) {
+	if c := kelvinTenthsToCelsius(3232); c < 49.9 || c > 50.2 {
+		t.Fatalf("conversion wrong: %f", c)
 	}
 }

@@ -124,6 +124,62 @@ struct AgentProcessList: Decodable {
   let processes: [AgentProcess]
 }
 
+struct AgentFan: Decodable, Hashable, Identifiable {
+  let label: String
+  let rpm: Double
+  var id: String { label }
+}
+
+struct AgentTemp: Decodable, Hashable, Identifiable {
+  let label: String
+  let celsius: Double
+  var id: String { label }
+}
+
+struct AgentSensors: Decodable, Hashable {
+  let available: Bool
+  let fans: [AgentFan]
+  let temps: [AgentTemp]
+
+  /// SMC key prefixes / hwmon labels grouped the way humans think about them.
+  var groupedTemps: [(group: String, max: Double, count: Int)] {
+    var buckets: [String: [Double]] = [:]
+    for temp in temps {
+      buckets[Self.groupKey(for: temp.label), default: []].append(temp.celsius)
+    }
+    return buckets.map { (group: $0.key, max: $0.value.max() ?? 0, count: $0.value.count) }
+      .sorted { $0.max > $1.max }
+  }
+
+  private static func groupKey(for label: String) -> String {
+    let lowered = label.lowercased()
+    if lowered.contains("core") || lowered.contains("package") || lowered.contains("cpu")
+      || label.hasPrefix("TC")
+    {
+      return "sensors.group.cpu"
+    }
+    if label.hasPrefix("TG") || lowered.contains("gpu") { return "sensors.group.gpu" }
+    if label.hasPrefix("TH") || lowered.contains("nvme") || lowered.contains("ssd")
+      || lowered.contains("composite")
+    {
+      return "sensors.group.storage"
+    }
+    if label.hasPrefix("TM") || lowered.contains("dimm") || lowered.contains("mem") {
+      return "sensors.group.memory"
+    }
+    if label.hasPrefix("TP") || label.hasPrefix("Tp") || lowered.contains("power") {
+      return "sensors.group.power"
+    }
+    if label.hasPrefix("TW") || lowered.contains("wifi") || lowered.contains("wireless") {
+      return "sensors.group.wireless"
+    }
+    if label.hasPrefix("Ta") || label.hasPrefix("TA") || lowered.contains("ambient") {
+      return "sensors.group.ambient"
+    }
+    return "sensors.group.other"
+  }
+}
+
 /// Per-node fetch state for the services tab.
 enum ServicesState {
   case loading

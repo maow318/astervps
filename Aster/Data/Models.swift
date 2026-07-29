@@ -35,7 +35,10 @@ struct NodeInfo: Identifiable, Codable, Hashable {
 /// Latest node metrics. Percentages are 0-100; byte quantities are raw bytes
 /// so views can format adaptively (agent wire format keeps used/total pairs).
 struct NodeMetrics: Codable, Hashable {
-  var cpuUsage, memoryUsage, swapUsage, diskUsage: Double
+  var cpuUsage: Double
+  /// Hypervisor-stolen CPU share; only meaningful on Linux guests.
+  var stealPercent: Double = 0
+  var memoryUsage, swapUsage, diskUsage: Double
   var downloadBytesPerSecond, uploadBytesPerSecond: Double
   var connectionCount, processCount: Int
   var loadAverage: Double

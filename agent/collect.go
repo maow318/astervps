@@ -61,8 +61,11 @@ type Load struct {
 }
 
 type Metrics struct {
-	Timestamp    int64       `json:"timestamp"`
-	CPUUsage     float64     `json:"cpu_usage"`
+	Timestamp int64   `json:"timestamp"`
+	CPUUsage  float64 `json:"cpu_usage"`
+	// Steal is the hypervisor-stolen CPU share (Linux guests only); the
+	// canonical oversold-host indicator for VPS buyers.
+	Steal        float64     `json:"steal"`
 	Memory       Memory      `json:"memory"`
 	Swap         Memory      `json:"swap"`
 	Disk         Memory      `json:"disk"`
@@ -108,6 +111,11 @@ type collector struct {
 	procCache map[int32]*process.Process
 	topStage  []ProcessInfo // written by collectSlow (collector goroutine only)
 	top       []ProcessInfo // published copy, guarded by mu
+
+	sensorsStage Sensors
+	sensors      Sensors // published copy, guarded by mu
+
+	previousCPUTimes *cpu.TimesStat
 }
 
 func newCollector(historyMinutes int) *collector {
@@ -208,9 +216,18 @@ func (c *collector) collect() {
 		cpuUsage = cpuPercents[0]
 	}
 
+	steal := 0.0
+	if cpuTimes, err := cpu.Times(false); err == nil && len(cpuTimes) > 0 {
+		if c.previousCPUTimes != nil {
+			steal = stealPercent(*c.previousCPUTimes, cpuTimes[0])
+		}
+		c.previousCPUTimes = &cpuTimes[0]
+	}
+
 	metrics := Metrics{
 		Timestamp:    now.Unix(),
 		CPUUsage:     cpuUsage,
+		Steal:        steal,
 		Memory:       Memory{Used: virtualMemory.Used, Total: virtualMemory.Total},
 		Swap:         Memory{Used: swapMemory.Used, Total: swapMemory.Total},
 		Disk:         Memory{Used: diskUsage.Used, Total: diskUsage.Total},
@@ -225,6 +242,7 @@ func (c *collector) collect() {
 	defer c.mu.Unlock()
 	c.latest = metrics
 	c.top = c.topStage
+	c.sensors = c.sensorsStage
 	if now.Sub(c.lastHistoryAt) >= historyInterval {
 		c.history = append(c.history, Snapshot{Timestamp: now.Unix(), Metrics: metrics})
 		c.lastHistoryAt = now
@@ -243,12 +261,30 @@ func (c *collector) collectSlow() {
 	c.connections = Connections{TCP: len(tcpConnections), UDP: len(udpConnections)}
 	c.processCount = len(pids)
 	c.topStage = c.sampleProcesses(pids)
+	c.sensorsStage = collectSensors()
 }
 
 func (c *collector) currentTopProcesses() []ProcessInfo {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.top
+}
+
+func (c *collector) currentSensors() Sensors {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.sensors
+}
+
+// stealPercent computes the stolen share of the CPU-time delta between two
+// aggregate readings.
+func stealPercent(previous, current cpu.TimesStat) float64 {
+	total := current.Total() - previous.Total()
+	stolen := current.Steal - previous.Steal
+	if total <= 0 || stolen <= 0 {
+		return 0
+	}
+	return stolen / total * 100
 }
 
 // sampleProcesses measures every process once per slow tick and keeps the

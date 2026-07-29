@@ -1,1 +1,3 @@
 agent/dist/
+agent/agent
+.DS_Store

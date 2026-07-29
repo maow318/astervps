@@ -12,7 +12,9 @@ struct AsterApp: App {
   @State private var store = MonitorStore()
   @Environment(\.scenePhase) private var scenePhase
   var body: some Scene {
-    WindowGroup(id: "main-window") {
+    // A single reusable window: openWindow from the menu bar panel fronts the
+    // existing one instead of stacking duplicates.
+    Window(L.text("app.name"), id: "main-window") {
       ContentView()
         .environment(store)
         .frame(minWidth: 900, minHeight: 600)

@@ -93,6 +93,9 @@
         }
       }
     },
+    "%lld RPM" : {
+
+    },
     "%lld/%lld" : {
       "localizations" : {
         "en" : {

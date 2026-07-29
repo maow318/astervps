@@ -122,7 +122,7 @@ struct MenuBarSummary: View {
   @ViewBuilder private var nodeList: some View {
     let rows = VStack(spacing: 6) {
       ForEach(nodes) { node in
-        NodeRow(node: node) { openMainWindow() }
+        NodeRow(node: node)
       }
     }
     if nodes.count > 5 {
@@ -176,15 +176,16 @@ private let panelFill = Color.primary.opacity(0.045)
 
 // MARK: - Node row
 
+// Informational row: hover reveals the insight popover; opening the main
+// window is the footer button's job alone.
 private struct NodeRow: View {
   @Environment(MonitorStore.self) private var store
   let node: NodeSnapshot
-  let action: () -> Void
   @State private var hovered = false
   @State private var showProcesses = false
 
   var body: some View {
-    Button(action: action) {
+    Group {
       VStack(spacing: 7) {
         HStack(spacing: 5) {
           Text(node.info.flag).font(.system(size: 12))
@@ -221,7 +222,6 @@ private struct NodeRow: View {
       .opacity(node.info.status == .offline ? 0.55 : 1)
       .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
-    .buttonStyle(.plain)
     .animation(AsterAnimation.gentle, value: hovered)
     .onHover { hovered = $0 }
     .task(id: hovered) {

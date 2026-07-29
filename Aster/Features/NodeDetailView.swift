@@ -166,20 +166,29 @@ struct NodeDetailView: View {
     return GlassCard {
       VStack(alignment: .leading, spacing: AsterSpacing.md) {
       HStack(spacing: AsterSpacing.md) {
-        ZStack {
-          RoundedRectangle(cornerRadius: 13, style: .continuous)
-            .fill(Color.primary.opacity(0.055))
-            .overlay {
-              RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
-            }
-          Image(systemName: meta?.deviceSymbol ?? "server.rack")
-            .font(.system(size: 26, weight: .medium))
-            .foregroundStyle(AsterColor.accent)
+        if let product = DeviceIdentity.productImage(for: meta?.modelIdentifier) {
+          // The system's own product render — the same asset About This Mac uses.
+          Image(nsImage: product)
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
+            .frame(width: 64, height: 64)
+        } else {
+          ZStack {
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+              .fill(Color.primary.opacity(0.055))
+              .overlay {
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                  .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+              }
+            Image(systemName: meta?.deviceSymbol ?? "server.rack")
+              .font(.system(size: 26, weight: .medium))
+              .foregroundStyle(AsterColor.accent)
+          }
+          .frame(width: 58, height: 58)
         }
-        .frame(width: 58, height: 58)
         VStack(alignment: .leading, spacing: 3) {
-          Text(node.info.name)
+          Text(DeviceIdentity.marketingName(for: meta?.modelIdentifier) ?? node.info.name)
             .font(.system(size: 21, weight: .bold, design: .rounded))
           Text(
             [meta?.osPretty ?? node.info.operatingSystem, meta?.modelIdentifier]
@@ -189,6 +198,11 @@ struct NodeDetailView: View {
           .foregroundStyle(AsterColor.foregroundSecondary)
         }
         Spacer()
+        VStack(alignment: .trailing, spacing: 3) {
+          if node.metrics.memoryTotalBytes > 0 {
+            infoCell(L.text("metric.memory"), AsterFormat.bytes(node.metrics.memoryTotalBytes))
+          }
+        }
       }
       LazyVGrid(
         columns: [GridItem(.adaptive(minimum: 160), spacing: AsterSpacing.md, alignment: .leading)],

@@ -1,4 +1,37 @@
+import AppKit
 import Foundation
+import UniformTypeIdentifiers
+
+/// Resolves Mac model identifiers to the system's own product render and
+/// marketing name — the same assets About This Mac uses, via public UTType
+/// device-model-code tagging. Works for remote Macs too.
+@MainActor
+enum DeviceIdentity {
+  static func deviceType(for modelIdentifier: String?) -> UTType? {
+    guard let modelIdentifier, !modelIdentifier.isEmpty else { return nil }
+    return UTType(
+      tag: modelIdentifier,
+      tagClass: UTTagClass(rawValue: "com.apple.device-model-code"),
+      conformingTo: nil)
+  }
+
+  static func productImage(for modelIdentifier: String?) -> NSImage? {
+    guard let type = deviceType(for: modelIdentifier) else { return nil }
+    return NSWorkspace.shared.icon(for: type)
+  }
+
+  /// "Mac mini (2024)" — marketing name plus the year hidden in the UTI.
+  static func marketingName(for modelIdentifier: String?) -> String? {
+    guard let type = deviceType(for: modelIdentifier),
+      let name = type.localizedDescription, name != modelIdentifier
+    else { return nil }
+    let year = type.identifier.split(separator: "-").last.flatMap { Int($0) }
+    if let year, year > 2000 {
+      return "\(name) (\(year))"
+    }
+    return name
+  }
+}
 
 enum AgentError: Error, LocalizedError {
   case invalidEndpoint

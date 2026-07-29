@@ -364,7 +364,15 @@ struct NodeInsightPopover: View {
         .foregroundStyle(AsterColor.accent)
       Text(L.text("menu.processes"))
         .font(.system(size: 11, weight: .semibold, design: .rounded))
+      Spacer(minLength: AsterSpacing.xs)
+      // Column captions so nobody has to guess which number is which.
+      Text(L.text("metric.cpu"))
+        .frame(width: ProcessRow.cpuColumn, alignment: .trailing)
+      Text(L.text("metric.memory"))
+        .frame(width: ProcessRow.memColumn, alignment: .trailing)
     }
+    .font(.system(size: 8.5))
+    .foregroundStyle(AsterColor.foregroundSecondary)
     switch store.processesByNode[nodeID] {
     case .none:
       ProgressView().controlSize(.small).frame(maxWidth: .infinity)
@@ -374,23 +382,11 @@ struct NodeInsightPopover: View {
         .font(AsterTypography.caption)
         .foregroundStyle(AsterColor.foregroundSecondary)
     case .some(.some(let processes)):
-      let ranked = processes.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(8)
-      VStack(spacing: 4) {
-        ForEach(Array(ranked)) { proc in
-          HStack(spacing: AsterSpacing.xs) {
-            Text(proc.name)
-              .font(.system(size: 11, weight: .medium, design: .rounded))
-              .lineLimit(1)
-              .truncationMode(.middle)
-            Spacer(minLength: AsterSpacing.xs)
-            Text(String(format: "%.1f%%", proc.cpuPercent))
-              .font(.system(size: 10.5, weight: .semibold, design: .rounded).monospacedDigit())
-              .frame(width: 46, alignment: .trailing)
-            Text(AsterFormat.bytes(proc.memBytes))
-              .font(.system(size: 10, design: .rounded).monospacedDigit())
-              .foregroundStyle(AsterColor.foregroundSecondary)
-              .frame(width: 62, alignment: .trailing)
-          }
+      let ranked = Array(processes.sorted { $0.cpuPercent > $1.cpuPercent }.prefix(8))
+      let memCeiling = max(ranked.map(\.memBytes).max() ?? 1, 1)
+      VStack(spacing: 5) {
+        ForEach(ranked) { proc in
+          ProcessRow(process: proc, memCeiling: memCeiling)
         }
       }
       if ranked.isEmpty {
@@ -398,6 +394,65 @@ struct NodeInsightPopover: View {
           .foregroundStyle(AsterColor.foregroundSecondary)
       }
     }
+  }
+}
+
+/// One ranked process: brand icon, name and user, then CPU and memory columns
+/// with tiny bars (memory normalized to the heaviest entry in the list).
+private struct ProcessRow: View {
+  static let cpuColumn: CGFloat = 52
+  static let memColumn: CGFloat = 66
+
+  let process: AgentProcess
+  let memCeiling: Double
+
+  var body: some View {
+    HStack(spacing: AsterSpacing.xs) {
+      RemoteIconTile(
+        slugSource: process.name,
+        fallback: ServiceGlyph.for(port: 0, process: process.name), size: 20)
+      VStack(alignment: .leading, spacing: 0) {
+        Text(process.name)
+          .font(.system(size: 11, weight: .medium, design: .rounded))
+          .lineLimit(1)
+          .truncationMode(.middle)
+        if !process.user.isEmpty {
+          Text(process.user)
+            .font(.system(size: 8.5))
+            .foregroundStyle(AsterColor.foregroundSecondary)
+            .lineLimit(1)
+        }
+      }
+      Spacer(minLength: AsterSpacing.xs)
+      column(
+        text: String(format: "%.1f%%", process.cpuPercent),
+        fraction: process.cpuPercent / 100,
+        tint: AsterColor.chartPalette[0], width: Self.cpuColumn, warns: true)
+      // Memory is normalized to the list's heaviest entry, so a full bar just
+      // means "biggest here" — never a warning.
+      column(
+        text: AsterFormat.bytes(process.memBytes),
+        fraction: process.memBytes / memCeiling,
+        tint: AsterColor.chartPalette[1], width: Self.memColumn, warns: false)
+    }
+  }
+
+  private func column(
+    text: String, fraction: Double, tint: Color, width: CGFloat, warns: Bool
+  ) -> some View {
+    VStack(alignment: .trailing, spacing: 2) {
+      Text(text)
+        .font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit())
+      GeometryReader { geo in
+        ZStack(alignment: .leading) {
+          Capsule().fill(tint.opacity(0.15))
+          Capsule().fill(warns && fraction >= 0.85 ? AsterColor.warning : tint)
+            .frame(width: geo.size.width * min(max(fraction, 0), 1))
+        }
+      }
+      .frame(height: 2.5)
+    }
+    .frame(width: width)
   }
 }
 

@@ -76,10 +76,15 @@ extension MonitorStore {
       machineStates[id] = .connected
       if let meta {
         metaByMachine[id] = meta
-        nodes[index].info.operatingSystem = meta.os
+      }
+      // Hydrate from the cached meta every poll: node entries can be rebuilt
+      // (geo updates, machine edits) after the one-time meta fetch, which used
+      // to leave os/hardware blank for the rest of the session.
+      if let effectiveMeta = metaByMachine[id] {
+        nodes[index].info.operatingSystem = effectiveMeta.os
         nodes[index].info.region = subtitle(machineID: id)
         nodes[index].info.hardware = String(
-          format: L.text("hardware.format"), meta.cpuModel, meta.cpuCores)
+          format: L.text("hardware.format"), effectiveMeta.cpuModel, effectiveMeta.cpuCores)
       }
       nodes[index].metrics = metrics.nodeMetrics
       nodes[index].info.status = .online

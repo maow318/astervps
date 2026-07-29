@@ -7,6 +7,7 @@
 #   --ghproxy <p>     GitHub proxy prefix, e.g. https://ghproxy.example (for CN networks)
 #   --version <v>     release tag to install, default latest
 #   --repo <o/r>      GitHub repository, default set below at release time
+#   --sha256 <hex>    optional: verify the downloaded binary against this digest
 #   --uninstall       stop the service and remove the binary
 set -eu
 
@@ -16,9 +17,12 @@ LISTEN=":9977"
 STATE_DIR="/var/lib/aster-agent"
 GHPROXY=""
 VERSION="latest"
+SHA256=""
 UNINSTALL=0
 BIN=/usr/local/bin/aster-agent
 SERVICE=aster-agent
+TOKEN_DIR=/etc/aster-agent
+TOKEN_FILE=$TOKEN_DIR/token
 
 log() { printf '%s\n' "$1"; }
 fail() { printf 'ERROR: %s\n' "$1" >&2; exit 1; }
@@ -31,6 +35,7 @@ while [ "$#" -gt 0 ]; do
     --ghproxy) GHPROXY="$2"; shift 2 ;;
     --version) VERSION="$2"; shift 2 ;;
     --repo) REPO="$2"; shift 2 ;;
+    --sha256) SHA256="$2"; shift 2 ;;
     --uninstall) UNINSTALL=1; shift ;;
     *) log "ignoring unknown argument: $1"; shift ;;
   esac
@@ -53,7 +58,8 @@ stop_previous() {
 
 if [ "$UNINSTALL" = 1 ]; then
   stop_previous
-  rm -f "$BIN"
+  rm -f "$BIN" "$TOKEN_FILE"
+  rmdir "$TOKEN_DIR" 2>/dev/null || true
   log "aster-agent uninstalled (state dir $STATE_DIR kept; remove manually if desired)"
   exit 0
 fi
@@ -91,10 +97,24 @@ if ! curl -fL -o "$BIN.tmp" "$URL"; then
   log "release download unavailable, falling back to $FALLBACK_URL"
   curl -fL -o "$BIN.tmp" "$FALLBACK_URL" || fail "download failed"
 fi
+if [ -n "$SHA256" ]; then
+  ACTUAL=$(sha256sum "$BIN.tmp" | cut -d' ' -f1)
+  [ "$ACTUAL" = "$SHA256" ] || { rm -f "$BIN.tmp"; fail "sha256 mismatch: got $ACTUAL"; }
+  log "sha256 verified"
+fi
 chmod 755 "$BIN.tmp"
 mv "$BIN.tmp" "$BIN"
 
 mkdir -p "$STATE_DIR"
+
+# The token lives in a root-only file instead of the unit's command line, so
+# it never shows up in `ps` output or the world-readable unit file.
+mkdir -p "$TOKEN_DIR"
+umask_previous=$(umask)
+umask 077
+printf '%s' "$TOKEN" > "$TOKEN_FILE"
+umask "$umask_previous"
+chmod 600 "$TOKEN_FILE"
 
 if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
   cat > "/etc/systemd/system/$SERVICE.service" << EOF
@@ -103,9 +123,18 @@ Description=Aster Agent
 After=network-online.target
 
 [Service]
-ExecStart=$BIN --listen $LISTEN --token $TOKEN --state-dir $STATE_DIR
+ExecStart=$BIN --listen $LISTEN --token-file $TOKEN_FILE --state-dir $STATE_DIR
 Restart=always
 RestartSec=3
+# Hardening: the agent only reads system state; it never needs new privileges,
+# a writable /usr//etc, or anyone's home directory.
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=read-only
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
 
 [Install]
 WantedBy=multi-user.target
@@ -119,7 +148,7 @@ elif command -v rc-service >/dev/null 2>&1; then
 #!/sbin/openrc-run
 name="Aster Agent"
 command="$BIN"
-command_args="--listen $LISTEN --token $TOKEN --state-dir $STATE_DIR"
+command_args="--listen $LISTEN --token-file $TOKEN_FILE --state-dir $STATE_DIR"
 command_background=true
 pidfile="/run/$SERVICE.pid"
 output_log="/var/log/$SERVICE.log"

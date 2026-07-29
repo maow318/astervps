@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -9,16 +10,21 @@ import (
 type server struct {
 	token     string
 	collector *collector
+	services  *serviceCollector
 }
 
 func registerHandlers(mux *http.ServeMux, s *server) {
 	mux.HandleFunc("/v1/meta", s.metaHandler)
 	mux.HandleFunc("/v1/metrics", s.metricsHandler)
 	mux.HandleFunc("/v1/history", s.historyHandler)
+	mux.HandleFunc("/v1/services", s.servicesHandler)
 }
 
 func (s *server) authorized(w http.ResponseWriter, r *http.Request) bool {
-	if r.Header.Get("Authorization") != "Bearer "+s.token {
+	// Constant-time comparison so response timing leaks nothing about the token.
+	provided := r.Header.Get("Authorization")
+	expected := "Bearer " + s.token
+	if subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return false
 	}
@@ -53,6 +59,14 @@ func (s *server) historyHandler(w http.ResponseWriter, r *http.Request) {
 		since = parsed
 	}
 	writeJSON(w, http.StatusOK, s.collector.historySince(since))
+}
+
+func (s *server) servicesHandler(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(w, r) {
+		return
+	}
+	force := r.URL.Query().Get("refresh") == "1"
+	writeJSON(w, http.StatusOK, s.services.current(force))
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

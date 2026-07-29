@@ -10,26 +10,40 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 )
 
-const version = "0.1.0"
+const version = "0.2.0"
 
 func main() {
 	listen := flag.String("listen", ":9977", "HTTPS listen address")
-	token := flag.String("token", "", "required bearer token")
+	token := flag.String("token", "", "bearer token (prefer --token-file, which keeps it out of the process list)")
+	tokenFile := flag.String("token-file", "", "file containing the bearer token")
 	historyMinutes := flag.Int("history-minutes", 360, "in-memory history retention in minutes")
 	stateDir := flag.String("state-dir", "", "directory for TLS state (default: /var/lib/aster-agent for root, user config dir otherwise)")
 	certPath := flag.String("cert", "", "certificate path (generated under state dir when omitted)")
 	keyPath := flag.String("key", "", "private key path (generated under state dir when omitted)")
+	servicesInterval := flag.Int("services-interval", 60, "service inspection refresh interval in seconds")
+	dockerSock := flag.String("docker-sock", "/var/run/docker.sock", "docker unix socket path")
 	flag.Parse()
 
+	if *tokenFile != "" {
+		content, err := os.ReadFile(*tokenFile)
+		if err != nil {
+			log.Fatalf("reading --token-file: %v", err)
+		}
+		*token = strings.TrimSpace(string(content))
+	}
 	if *token == "" {
-		log.Fatal("--token is required")
+		log.Fatal("--token or --token-file is required")
 	}
 
 	collector := newCollector(*historyMinutes)
 	collector.start()
+	services := newServiceCollector(*servicesInterval, *dockerSock)
+	services.start()
 
 	dir, err := resolveStateDir(*stateDir)
 	if err != nil {
@@ -45,7 +59,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	registerHandlers(mux, &server{token: *token, collector: collector})
+	registerHandlers(mux, &server{token: *token, collector: collector, services: services})
 
 	log.Printf("aster-agent %s listening on https://%s", version, *listen)
 	log.Printf("TLS state dir: %s", dir)

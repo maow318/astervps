@@ -122,11 +122,56 @@ esac
 if [ -n "$DOMAIN" ]; then
   [ "$PLATFORM" = "linux" ] || fail "--domain mode is Linux-only (the local Mac never needs it)"
   case "$PROXY" in caddy|nginx|auto) ;; *) fail "--proxy must be caddy, nginx or auto" ;; esac
-  # The agent must not stay exposed on the public interface in domain mode.
   AGENT_PORT="${LISTEN##*:}"
-  LISTEN="127.0.0.1:$AGENT_PORT"
 
-  log "domain mode: $DOMAIN (agent will listen on loopback only)"
+  # Self-heal an interrupted apt run before anything else.
+  dpkg --configure -a >/dev/null 2>&1 || true
+
+  # Detect what already terminates TLS on this box — including Caddy running
+  # inside Docker — before deciding how to wire the proxy.
+  DOCKER_CADDY=""
+  if command -v docker >/dev/null 2>&1; then
+    DOCKER_CADDY=$(docker ps --format '{{.Names}} {{.Image}}' 2>/dev/null \
+      | awk 'tolower($0) ~ /caddy/ {print $1; exit}') || true
+  fi
+  PROXY_KIND=""
+  case "$PROXY" in
+    caddy)
+      if command -v caddy >/dev/null 2>&1; then PROXY_KIND=caddy-host
+      elif [ -n "$DOCKER_CADDY" ]; then PROXY_KIND=caddy-docker
+      else PROXY_KIND=install-caddy; fi ;;
+    nginx)
+      command -v nginx >/dev/null 2>&1 || fail "--proxy nginx requested but nginx is not installed on the host (dockerized nginx is not automated; see docs)"
+      PROXY_KIND=nginx-host ;;
+    auto)
+      if command -v caddy >/dev/null 2>&1; then PROXY_KIND=caddy-host
+      elif [ -n "$DOCKER_CADDY" ]; then PROXY_KIND=caddy-docker
+      elif command -v nginx >/dev/null 2>&1; then PROXY_KIND=nginx-host
+      else PROXY_KIND=install-caddy; fi ;;
+  esac
+
+  if [ "$PROXY_KIND" = "caddy-docker" ]; then
+    # A leftover half-installed host caddy would fight the container for 443.
+    systemctl disable --now caddy >/dev/null 2>&1 || true
+    GATEWAY=$(docker inspect "$DOCKER_CADDY" \
+      --format '{{range .NetworkSettings.Networks}}{{.Gateway}}{{println}}{{end}}' \
+      | awk 'NF {print; exit}')
+    [ -n "$GATEWAY" ] || fail "cannot determine the docker network gateway of container $DOCKER_CADDY"
+    # The agent binds the bridge gateway: reachable from the container, not
+    # from the public interface.
+    LISTEN="$GATEWAY:$AGENT_PORT"
+    log "detected dockerized Caddy ($DOCKER_CADDY); agent will listen on $LISTEN"
+  else
+    LISTEN="127.0.0.1:$AGENT_PORT"
+  fi
+
+  if [ "$PROXY_KIND" = "install-caddy" ]; then
+    if command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | grep -q ':443 '; then
+      fail "port 443 is already in use by something this script does not recognize; configure your existing proxy manually (see docs/aster-protocol.md) or free the port"
+    fi
+  fi
+
+  log "domain mode: $DOMAIN (proxy: $PROXY_KIND)"
   log "prerequisite: the domain's A record must already point at this server,"
   log "or be proxied through a CDN such as Cloudflare."
   RESOLVED=$(getent ahosts "$DOMAIN" 2>/dev/null | awk '{print $1; exit}' || true)
@@ -263,13 +308,16 @@ setup_caddy() {
   if ! command -v caddy >/dev/null 2>&1; then
     log "installing Caddy (official repository)"
     command -v apt-get >/dev/null 2>&1 || fail "automatic Caddy install needs apt; install caddy or nginx manually, then re-run"
-    apt-get update -qq
-    apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https gnupg >/dev/null
+    log "step 1/3: refreshing apt (a few minutes on slow machines)"
+    apt-get update -q
+    apt-get install -y -q debian-keyring debian-archive-keyring apt-transport-https gnupg
+    log "step 2/3: adding the Caddy repository"
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
       | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
     curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
       > /etc/apt/sources.list.d/caddy-stable.list
-    apt-get update -qq && apt-get install -y -qq caddy >/dev/null
+    log "step 3/3: installing caddy"
+    apt-get update -q && apt-get install -y -q caddy
   fi
   touch "$CADDYFILE"
   sed -i '/# aster-agent begin/,/# aster-agent end/d' "$CADDYFILE"
@@ -319,16 +367,47 @@ EOF
   log "nginx + Let's Encrypt configured; certbot renews automatically."
 }
 
+setup_caddy_docker() {
+  CADDYFILE_HOST=$(docker inspect "$DOCKER_CADDY" \
+    --format '{{range .Mounts}}{{.Destination}} {{.Source}}{{println}}{{end}}' \
+    | awk '$1 == "/etc/caddy/Caddyfile" {print $2; exit}')
+  if [ -z "$CADDYFILE_HOST" ]; then
+    DIR_MOUNT=$(docker inspect "$DOCKER_CADDY" \
+      --format '{{range .Mounts}}{{.Destination}} {{.Source}}{{println}}{{end}}' \
+      | awk '$1 == "/etc/caddy" {print $2; exit}')
+    [ -n "$DIR_MOUNT" ] && [ -f "$DIR_MOUNT/Caddyfile" ] && CADDYFILE_HOST="$DIR_MOUNT/Caddyfile"
+  fi
+  [ -n "$CADDYFILE_HOST" ] || fail "found Caddy container $DOCKER_CADDY but not its Caddyfile bind mount; add this block manually and reload:
+$DOMAIN {
+  reverse_proxy https://$GATEWAY:$AGENT_PORT {
+    transport http {
+      tls_insecure_skip_verify
+    }
+  }
+}"
+  log "updating $CADDYFILE_HOST"
+  sed -i '/# aster-agent begin/,/# aster-agent end/d' "$CADDYFILE_HOST"
+  cat >> "$CADDYFILE_HOST" << EOF
+# aster-agent begin
+$DOMAIN {
+  reverse_proxy https://$GATEWAY:$AGENT_PORT {
+    transport http {
+      tls_insecure_skip_verify
+    }
+  }
+}
+# aster-agent end
+EOF
+  docker exec "$DOCKER_CADDY" caddy reload --config /etc/caddy/Caddyfile 2>/dev/null \
+    || docker restart "$DOCKER_CADDY" >/dev/null
+  log "dockerized Caddy reloaded; certificate for $DOMAIN will be issued automatically."
+}
+
 if [ -n "$DOMAIN" ]; then
-  case "$PROXY" in
-    caddy) setup_caddy ;;
-    nginx) setup_nginx ;;
-    auto)
-      if command -v caddy >/dev/null 2>&1; then setup_caddy
-      elif command -v nginx >/dev/null 2>&1; then setup_nginx
-      else setup_caddy
-      fi
-      ;;
+  case "$PROXY_KIND" in
+    caddy-host | install-caddy) setup_caddy ;;
+    caddy-docker) setup_caddy_docker ;;
+    nginx-host) setup_nginx ;;
   esac
 fi
 

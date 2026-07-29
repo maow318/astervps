@@ -49,3 +49,20 @@ Degradation semantics: `scope` is `local` for loopback binds and `public` otherw
 ## Security
 
 The agent creates an ECDSA P-256 self-signed certificate when no paths are supplied, stores it under a reboot-stable state directory (`/var/lib/aster-agent` for root, the user config dir otherwise, overridable with `--state-dir`), and prints its DER SHA-256 fingerprint. Clients must use TOFU: show this fingerprint on first connection, store the accepted value for that machine, and reject future certificate changes. A bearer token remains required; TLS protects it only in transit.
+
+## Domain deployments (firewall resilience)
+
+`IP + self-signed certificate + odd port` is a fingerprintable pattern that national firewalls block. The recommended hardened deployment hides the agent behind the host's existing web server on 443 under a real domain:
+
+```
+# Caddyfile — agent listens on loopback only (--listen 127.0.0.1:9977)
+agent.example.com {
+  reverse_proxy https://127.0.0.1:9977 {
+    transport http {
+      tls_insecure_skip_verify   # loopback hop; the public leg uses the real cert
+    }
+  }
+}
+```
+
+When a probed endpoint's chain validates against the system CA store, clients store the sentinel `ca` instead of a pin and verify via the CA store from then on — Let's Encrypt rotations never break the connection. Self-signed/IP endpoints keep the TOFU pin. Traffic to `https://agent.example.com` is indistinguishable from ordinary web browsing (real SNI, shared 443).

@@ -163,6 +163,7 @@ final class MonitorStore {
         Task {
           do {
             let fingerprint = try await AgentClient.probeFingerprint(endpoint: probeEndpoint)
+              .fingerprint
             print("[aster-debug] probe fingerprint: \(fingerprint)")
           } catch {
             print("[aster-debug] probe error: \(error)")

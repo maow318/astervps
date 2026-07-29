@@ -66,16 +66,24 @@ final class AgentClient {
     self.fingerprint = fingerprint
   }
 
+  /// Machines whose stored fingerprint is this sentinel are verified against
+  /// the system CA store instead of a pin — for domain deployments behind a
+  /// real (rotating) certificate.
+  static let systemTrustSentinel = "ca"
+
   /// Connects once without credentials purely to observe the server's leaf
   /// certificate. No token is transmitted, so a man-in-the-middle learns
-  /// nothing; the returned fingerprint is what the user confirms (TOFU).
-  static func probeFingerprint(endpoint: String) async throws -> String {
+  /// nothing; the returned fingerprint is what the user confirms (TOFU) —
+  /// unless the chain already validates via the system CA store.
+  static func probeFingerprint(endpoint: String) async throws -> (
+    fingerprint: String, caVerified: Bool
+  ) {
     guard let url = URL(string: endpoint), url.scheme == "https" else {
       throw AgentError.invalidEndpoint
     }
     let response = try await AgentTransport.get(
       url: url.appendingPathComponent("/v1/meta"), token: nil, trust: .probe)
-    return response.fingerprint
+    return (response.fingerprint, response.caVerified)
   }
 
   func meta() async throws -> AgentMeta {
@@ -117,7 +125,8 @@ final class AgentClient {
     guard let url = components.url else { throw AgentError.invalidEndpoint }
 
     let response = try await AgentTransport.get(
-      url: url, token: token, trust: .pinned(fingerprint))
+      url: url, token: token,
+      trust: fingerprint == Self.systemTrustSentinel ? .system : .pinned(fingerprint))
     if response.status == 401 { throw AgentError.unauthorized }
     guard 200..<300 ~= response.status else { throw AgentError.badResponse(response.status) }
     let decoder = JSONDecoder()

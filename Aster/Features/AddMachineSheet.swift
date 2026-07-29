@@ -149,7 +149,10 @@ struct AddMachineSheet: View {
     Task {
       defer { isBusy = false }
       do {
-        fingerprint = try await AgentClient.probeFingerprint(endpoint: trimmed)
+        let probe = try await AgentClient.probeFingerprint(endpoint: trimmed)
+        // A CA-validated chain (domain behind a real certificate) needs no
+        // pin: store the sentinel so renewals never break the connection.
+        fingerprint = probe.caVerified ? AgentClient.systemTrustSentinel : probe.fingerprint
       } catch {
         errorMessage = error.localizedDescription
       }

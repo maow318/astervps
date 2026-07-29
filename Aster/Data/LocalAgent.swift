@@ -40,7 +40,8 @@ final class LocalAgentManager {
     var fingerprint: String?
     for _ in 0..<5 {
       try? await Task.sleep(for: .milliseconds(700))
-      fingerprint = try? await AgentClient.probeFingerprint(endpoint: Self.endpoint)
+      fingerprint = (try? await AgentClient.probeFingerprint(endpoint: Self.endpoint))?
+        .fingerprint
       if fingerprint != nil { break }
     }
     guard let fingerprint else { return }

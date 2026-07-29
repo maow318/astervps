@@ -58,6 +58,10 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+# TLS SNI and Caddy site blocks are case-sensitive; DNS is not. Normalize so a
+# user typing RN.Example.com cannot produce a site block nobody matches.
+DOMAIN=$(printf '%s' "$DOMAIN" | tr '[:upper:]' '[:lower:]')
+
 [ "$(id -u)" = 0 ] || fail "run as root (sudo)"
 
 stop_previous() {
@@ -85,10 +89,26 @@ remove_proxy_config() {
     sed -i '/# aster-agent begin/,/# aster-agent end/d' "$CADDYFILE"
     systemctl reload caddy 2>/dev/null || true
   fi
+  # Dockerized Caddy: find the container's bind-mounted Caddyfile and clean it.
+  if command -v docker >/dev/null 2>&1; then
+    container=$(docker ps --format '{{.Names}} {{.Image}}' 2>/dev/null \
+      | awk 'tolower($0) ~ /caddy/ {print $1; exit}') || true
+    if [ -n "${container:-}" ]; then
+      mounted=$(docker inspect "$container" \
+        --format '{{range .Mounts}}{{.Destination}} {{.Source}}{{println}}{{end}}' 2>/dev/null \
+        | awk '$1 == "/etc/caddy/Caddyfile" {print $2; exit}')
+      if [ -n "${mounted:-}" ] && grep -q '# aster-agent begin' "$mounted" 2>/dev/null; then
+        sed -i '/# aster-agent begin/,/# aster-agent end/d' "$mounted"
+        docker exec "$container" caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 || true
+        log "removed the aster-agent block from $mounted"
+      fi
+    fi
+  fi
   if [ -f "$NGINX_CONF" ]; then
     rm -f "$NGINX_CONF"
     systemctl reload nginx 2>/dev/null || true
   fi
+  rm -f /etc/cron.d/aster-certbot-renew
 }
 
 if [ "$UNINSTALL" = 1 ]; then
@@ -130,9 +150,12 @@ if [ -n "$DOMAIN" ]; then
   # Detect what already terminates TLS on this box — including Caddy running
   # inside Docker — before deciding how to wire the proxy.
   DOCKER_CADDY=""
+  DOCKER_NGINX=""
   if command -v docker >/dev/null 2>&1; then
     DOCKER_CADDY=$(docker ps --format '{{.Names}} {{.Image}}' 2>/dev/null \
       | awk 'tolower($0) ~ /caddy/ {print $1; exit}') || true
+    DOCKER_NGINX=$(docker ps --format '{{.Names}} {{.Image}}' 2>/dev/null \
+      | awk 'tolower($0) ~ /nginx|npm|proxy-manager/ {print $1; exit}') || true
   fi
   PROXY_KIND=""
   case "$PROXY" in
@@ -141,16 +164,25 @@ if [ -n "$DOMAIN" ]; then
       elif [ -n "$DOCKER_CADDY" ]; then PROXY_KIND=caddy-docker
       else PROXY_KIND=install-caddy; fi ;;
     nginx)
-      command -v nginx >/dev/null 2>&1 || fail "--proxy nginx requested but nginx is not installed on the host (dockerized nginx is not automated; see docs)"
-      PROXY_KIND=nginx-host ;;
+      if command -v nginx >/dev/null 2>&1; then PROXY_KIND=nginx-host
+      elif [ -n "$DOCKER_NGINX" ]; then PROXY_KIND=nginx-docker
+      else fail "--proxy nginx requested but nginx is not installed"; fi ;;
     auto)
       if command -v caddy >/dev/null 2>&1; then PROXY_KIND=caddy-host
       elif [ -n "$DOCKER_CADDY" ]; then PROXY_KIND=caddy-docker
       elif command -v nginx >/dev/null 2>&1; then PROXY_KIND=nginx-host
+      elif [ -n "$DOCKER_NGINX" ]; then PROXY_KIND=nginx-docker
       else PROXY_KIND=install-caddy; fi ;;
   esac
 
-  if [ "$PROXY_KIND" = "caddy-docker" ]; then
+  if [ "$PROXY_KIND" = "nginx-docker" ]; then
+    GATEWAY=$(docker inspect "$DOCKER_NGINX" \
+      --format '{{range .NetworkSettings.Networks}}{{.Gateway}}{{println}}{{end}}' \
+      | awk 'NF {print; exit}')
+    [ -n "$GATEWAY" ] || fail "cannot determine the docker network gateway of container $DOCKER_NGINX"
+    LISTEN="$GATEWAY:$AGENT_PORT"
+    log "detected dockerized nginx ($DOCKER_NGINX); agent will listen on $LISTEN"
+  elif [ "$PROXY_KIND" = "caddy-docker" ]; then
     # A leftover half-installed host caddy would fight the container for 443.
     systemctl disable --now caddy >/dev/null 2>&1 || true
     GATEWAY=$(docker inspect "$DOCKER_CADDY" \
@@ -304,6 +336,70 @@ else
 fi
 
 # ---- domain mode: reverse proxy + real certificate --------------------------
+
+# Existing Caddyfiles often end with a whitelist guard such as
+#   @not_known not host a.example b.example
+#   respond @not_known "Forbidden" 403
+# which answers 403 for every other name — including Let's Encrypt's HTTP
+# challenge, so the new domain could never get a certificate. Add ourselves to
+# every such whitelist we find.
+allow_in_host_whitelists() {
+  target="$1"
+  grep -q "not host" "$target" 2>/dev/null || return 0
+  grep "not host" "$target" | grep -q "$DOMAIN" && return 0
+  sed -i "/not host/ s/\$/ $DOMAIN/" "$target"
+  log "added $DOMAIN to the host whitelist in $(basename "$target")"
+}
+
+write_caddy_block() {
+  target="$1"
+  upstream="$2"
+  sed -i '/# aster-agent begin/,/# aster-agent end/d' "$target"
+  allow_in_host_whitelists "$target"
+  cat >> "$target" << EOF
+# aster-agent begin
+$DOMAIN {
+  reverse_proxy https://$upstream {
+    transport http {
+      tls_insecure_skip_verify
+    }
+  }
+}
+# aster-agent end
+EOF
+}
+
+# verify_domain polls the public endpoint until the certificate is live. A 401
+# is the success signal: the agent answered through the proxy without a token.
+verify_domain() {
+  log "verifying https://$DOMAIN (issuing the certificate can take ~30 s)"
+  attempt=0
+  while [ "$attempt" -lt 12 ]; do
+    attempt=$((attempt + 1))
+    CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "https://$DOMAIN/v1/meta" 2>/dev/null || true)
+    case "$CODE" in
+      401|200) log "verified: the domain serves the agent over a trusted certificate"; return 0 ;;
+      403) log "  attempt $attempt: 403 (a whitelist rule is still blocking; retrying)" ;;
+      000|"") log "  attempt $attempt: no answer yet (certificate pending)" ;;
+      *) log "  attempt $attempt: HTTP $CODE" ;;
+    esac
+    sleep 5
+  done
+  log ""
+  log "WARNING: $DOMAIN did not answer as expected yet (last code: ${CODE:-none})."
+  log "Diagnose with:"
+  if [ "$PROXY_KIND" = "caddy-docker" ]; then
+    log "  docker logs --tail 50 $DOCKER_CADDY | grep -i $DOMAIN"
+  elif [ "$PROXY_KIND" = "nginx-host" ]; then
+    log "  journalctl -u nginx --no-pager | tail -30; certbot certificates"
+  else
+    log "  journalctl -u caddy --no-pager | tail -30"
+  fi
+  log "Common causes: DNS not propagated yet, port 80 blocked (needed for the"
+  log "certificate challenge), or a CDN proxy terminating TLS in front."
+  return 1
+}
+
 setup_caddy() {
   if ! command -v caddy >/dev/null 2>&1; then
     log "installing Caddy (official repository)"
@@ -320,20 +416,12 @@ setup_caddy() {
     apt-get update -q && apt-get install -y -q caddy
   fi
   touch "$CADDYFILE"
-  sed -i '/# aster-agent begin/,/# aster-agent end/d' "$CADDYFILE"
-  cat >> "$CADDYFILE" << EOF
-# aster-agent begin
-$DOMAIN {
-  reverse_proxy https://127.0.0.1:$AGENT_PORT {
-    transport http {
-      tls_insecure_skip_verify
-    }
-  }
-}
-# aster-agent end
-EOF
+  write_caddy_block "$CADDYFILE" "127.0.0.1:$AGENT_PORT"
   systemctl enable --now caddy >/dev/null 2>&1 || true
-  systemctl reload caddy 2>/dev/null || systemctl restart caddy
+  if ! systemctl reload caddy 2>&1; then
+    log "reload failed, restarting caddy"
+    systemctl restart caddy || fail "caddy failed to start; check: journalctl -u caddy | tail -30"
+  fi
   log "Caddy configured; the certificate is issued and renewed automatically."
 }
 
@@ -353,18 +441,30 @@ EOF
   nginx -t || fail "nginx config test failed"
   systemctl reload nginx 2>/dev/null || systemctl restart nginx
   if ! command -v certbot >/dev/null 2>&1; then
-    log "installing certbot"
+    log "installing certbot (a few minutes on slow machines)"
     if command -v apt-get >/dev/null 2>&1; then
-      apt-get update -qq && apt-get install -y -qq certbot python3-certbot-nginx >/dev/null
+      apt-get update -q && apt-get install -y -q certbot python3-certbot-nginx
     elif command -v dnf >/dev/null 2>&1; then
       dnf install -y -q certbot python3-certbot-nginx
+    elif command -v yum >/dev/null 2>&1; then
+      yum install -y -q certbot python3-certbot-nginx
     else
       fail "certbot unavailable; install it manually, then run: certbot --nginx -d $DOMAIN"
     fi
   fi
+  log "requesting the certificate from Let's Encrypt"
   certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --register-unsafely-without-email \
-    || fail "certificate issuance failed (is port 80 reachable and DNS live?); fix and re-run: certbot --nginx -d $DOMAIN"
-  log "nginx + Let's Encrypt configured; certbot renews automatically."
+    --redirect --keep-until-expiring \
+    || fail "certificate issuance failed (is port 80 reachable from the internet and DNS live?); fix, then re-run this installer"
+  # Renewal: certbot ships a systemd timer on most distros; fall back to cron.
+  if systemctl list-timers 2>/dev/null | grep -q certbot; then
+    log "renewal handled by the certbot systemd timer"
+  elif [ -d /etc/cron.d ]; then
+    printf '0 3 * * * root certbot renew --quiet --deploy-hook "systemctl reload nginx"\n' \
+      > /etc/cron.d/aster-certbot-renew
+    log "renewal cron installed at /etc/cron.d/aster-certbot-renew"
+  fi
+  log "nginx + Let's Encrypt configured."
 }
 
 setup_caddy_docker() {
@@ -386,20 +486,12 @@ $DOMAIN {
   }
 }"
   log "updating $CADDYFILE_HOST"
-  sed -i '/# aster-agent begin/,/# aster-agent end/d' "$CADDYFILE_HOST"
-  cat >> "$CADDYFILE_HOST" << EOF
-# aster-agent begin
-$DOMAIN {
-  reverse_proxy https://$GATEWAY:$AGENT_PORT {
-    transport http {
-      tls_insecure_skip_verify
-    }
-  }
-}
-# aster-agent end
-EOF
-  docker exec "$DOCKER_CADDY" caddy reload --config /etc/caddy/Caddyfile 2>/dev/null \
-    || docker restart "$DOCKER_CADDY" >/dev/null
+  write_caddy_block "$CADDYFILE_HOST" "$GATEWAY:$AGENT_PORT"
+  if ! docker exec "$DOCKER_CADDY" caddy reload --config /etc/caddy/Caddyfile 2>&1; then
+    log "reload failed, restarting the container"
+    docker restart "$DOCKER_CADDY" >/dev/null \
+      || fail "could not restart $DOCKER_CADDY; check: docker logs --tail 50 $DOCKER_CADDY"
+  fi
   log "dockerized Caddy reloaded; certificate for $DOMAIN will be issued automatically."
 }
 
@@ -408,14 +500,41 @@ if [ -n "$DOMAIN" ]; then
     caddy-host | install-caddy) setup_caddy ;;
     caddy-docker) setup_caddy_docker ;;
     nginx-host) setup_nginx ;;
+    nginx-docker)
+      log ""
+      log "Dockerized nginx ($DOCKER_NGINX) detected. Certificate issuance inside"
+      log "someone else's nginx container is too varied to automate safely, so add"
+      log "this server block to that container's config and reload it:"
+      log ""
+      log "  server {"
+      log "      listen 443 ssl;"
+      log "      server_name $DOMAIN;"
+      log "      # point ssl_certificate/ssl_certificate_key at a cert for this name"
+      log "      location / {"
+      log "          proxy_pass https://$GATEWAY:$AGENT_PORT;"
+      log "          proxy_ssl_verify off;"
+      log "          proxy_set_header Host \$host;"
+      log "      }"
+      log "  }"
+      log ""
+      log "Nginx Proxy Manager users: add a proxy host for $DOMAIN pointing at"
+      log "$GATEWAY:$AGENT_PORT with HTTPS upstream and request a Let's Encrypt"
+      log "certificate in its SSL tab."
+      DOMAIN_MANUAL=1 ;;
   esac
+  [ "${DOMAIN_MANUAL:-0}" = 1 ] || verify_domain || DOMAIN_UNVERIFIED=1
 fi
 
 log ""
 log "=========================================="
 log "aster-agent installed and running on $LISTEN"
 if [ -n "$DOMAIN" ]; then
-  log "Domain mode active. In Aster.app add this machine with:"
+  if [ "${DOMAIN_UNVERIFIED:-0}" = 1 ]; then
+    log "Domain mode configured but NOT yet reachable — see the warning above."
+    log "Once it answers, add this machine in Aster.app with:"
+  else
+    log "Domain mode active and verified. In Aster.app add this machine with:"
+  fi
   log "  https://$DOMAIN"
   log "No fingerprint comparison needed — the CA certificate is verified automatically."
 elif [ -n "${FINGERPRINT:-}" ]; then

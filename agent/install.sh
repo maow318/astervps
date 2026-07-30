@@ -110,6 +110,9 @@ ASTER_PROXY_KIND=$3
 ASTER_LISTEN=$4
 EOF
   chmod 600 "$STATE_FILE"
+  # Keep the in-memory view current so a diagnosis printed later in this same
+  # run reports what we just configured instead of the pre-run state.
+  SAVED_MODE="$1"; SAVED_DOMAIN="$2"; SAVED_PROXY="$3"; SAVED_LISTEN="$4"
 }
 
 # ---- proxy discovery --------------------------------------------------------

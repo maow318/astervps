@@ -137,11 +137,24 @@ docker_gateway() {
 
 public_ip() { curl -4fsS --max-time 8 https://api.ipify.org 2>/dev/null || true; }
 
+# Docker bind-mounts a single file by inode. `sed -i` writes a new file and
+# renames it over the old one, which silently detaches the mount: the container
+# keeps reading the original inode forever and every reload reports "config is
+# unchanged". Editing through a temp file and truncating the original keeps the
+# inode — and the mount — intact.
+edit_inplace() { # <file> <sed expression>
+  tmp="$1.aster-tmp"
+  if sed "$2" "$1" > "$tmp" 2>/dev/null; then
+    cat "$tmp" > "$1"
+  fi
+  rm -f "$tmp"
+}
+
 # ---- cleanup: pasting the command twice must never pile up config ----------
 clean_proxy_blocks() {
   cleaned=0
   if [ -f "$CADDYFILE" ] && grep -q '# aster-agent begin' "$CADDYFILE" 2>/dev/null; then
-    sed -i '/# aster-agent begin/,/# aster-agent end/d' "$CADDYFILE"
+    edit_inplace "$CADDYFILE" '/# aster-agent begin/,/# aster-agent end/d'
     systemctl reload caddy >/dev/null 2>&1 || true
     cleaned=1
   fi
@@ -149,7 +162,7 @@ clean_proxy_blocks() {
   if [ -n "$DOCKER_CADDY" ]; then
     mounted=$(docker_caddyfile "$DOCKER_CADDY")
     if [ -n "${mounted:-}" ] && grep -q '# aster-agent begin' "$mounted" 2>/dev/null; then
-      sed -i '/# aster-agent begin/,/# aster-agent end/d' "$mounted"
+      edit_inplace "$mounted" '/# aster-agent begin/,/# aster-agent end/d'
       docker exec "$DOCKER_CADDY" caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 || true
       cleaned=1
     fi
@@ -544,13 +557,13 @@ allow_in_whitelists() {
   touched=0
   if grep -q "not host" "$1" 2>/dev/null; then
     if ! grep "not host" "$1" | grep -q "$DOMAIN"; then
-      sed -i "/not host/ s/\$/ $DOMAIN/" "$1"
+      edit_inplace "$1" "/not host/ s/\$/ $DOMAIN/"
       touched=1
     fi
   fi
   if grep -qE '^[[:space:]]*@[A-Za-z_]+[[:space:]]+host[[:space:]]' "$1" 2>/dev/null; then
     if ! grep -E '^[[:space:]]*@[A-Za-z_]+[[:space:]]+host[[:space:]]' "$1" | grep -q "$DOMAIN"; then
-      sed -i "/^[[:space:]]*@[A-Za-z_]*[[:space:]]*host[[:space:]]/ s/\$/ $DOMAIN/" "$1"
+      edit_inplace "$1" "/^[[:space:]]*@[A-Za-z_]*[[:space:]]*host[[:space:]]/ s/\$/ $DOMAIN/"
       touched=1
     fi
   fi
@@ -592,7 +605,7 @@ tls_line() {
 }
 
 write_caddy_block() {
-  sed -i '/# aster-agent begin/,/# aster-agent end/d' "$1"
+  edit_inplace "$1" '/# aster-agent begin/,/# aster-agent end/d'
   allow_in_whitelists "$1"
   extra=$(tls_line "$1")
   {
@@ -683,9 +696,23 @@ if [ -n "$DOMAIN" ]; then
                 "found the Caddy container but not its Caddyfile mount"
       say "正在更新 $CADDYFILE_HOST" "updating $CADDYFILE_HOST"
       write_caddy_block "$CADDYFILE_HOST" "$GATEWAY:$AGENT_PORT"
-      docker exec "$DOCKER_CADDY" caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
-        || docker restart "$DOCKER_CADDY" >/dev/null 2>&1 \
-        || fail "无法重载 Caddy 容器" "could not reload the Caddy container" ;;
+      # An earlier tool may already have detached the bind mount (see
+      # edit_inplace): confirm the container really sees the new config and
+      # restart it — which re-resolves the mount — when it does not.
+      if ! docker exec "$DOCKER_CADDY" grep -q "$DOMAIN" /etc/caddy/Caddyfile 2>/dev/null; then
+        say "容器还看不到新配置(挂载已失效),正在重启 Caddy 容器修复" \
+            "the container cannot see the new config (stale bind mount); restarting it"
+        docker restart "$DOCKER_CADDY" >/dev/null 2>&1 \
+          || fail "无法重启 Caddy 容器" "could not restart the Caddy container"
+        sleep 4
+        docker exec "$DOCKER_CADDY" grep -q "$DOMAIN" /etc/caddy/Caddyfile 2>/dev/null \
+          || fail "容器内的配置文件与宿主机文件不一致,请检查 $DOCKER_CADDY 的挂载设置" \
+                  "the container's config still differs from the host file; check the mounts of $DOCKER_CADDY"
+      else
+        docker exec "$DOCKER_CADDY" caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
+          || docker restart "$DOCKER_CADDY" >/dev/null 2>&1 \
+          || fail "无法重载 Caddy 容器" "could not reload the Caddy container"
+      fi ;;
     nginx-host) setup_nginx_host ;;
     nginx-docker)
       say "" ""

@@ -298,7 +298,22 @@ run_doctor() {
   fi
 
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "https://$CHECK_DOMAIN/v1/meta" 2>/dev/null || true)
+  # Distinguish "nothing answers" from "answers with an untrusted certificate":
+  # a self-signed answer means TLS works but no client will accept it.
+  insecure_code=""
+  if [ -z "$code" ] || [ "$code" = "000" ]; then
+    insecure_code=$(curl -sk -o /dev/null -w '%{http_code}' --max-time 10 "https://$CHECK_DOMAIN/v1/meta" 2>/dev/null || true)
+  fi
   say "" ""
+  if [ -n "$insecure_code" ] && [ "$insecure_code" != "000" ]; then
+    bad "域名有响应,但证书不被信任(是自签证书,不是权威机构签发的)" \
+        "the domain answers but with an untrusted (self-signed) certificate"
+    say "原因:反代配置里有 tls internal 之类的自签兜底,新域名套用了它。" \
+        "Cause: a catch-all such as 'tls internal' in the proxy config covers the new domain."
+    say "结论:重新粘贴一次安装命令即可 —— 新版脚本会为这个域名单独指定权威证书。" \
+        "Conclusion: re-run the installer; it now pins this domain to a public issuer."
+    return 0
+  fi
   case "$code" in
     401 | 200)
       ok "域名可以正常访问 agent(返回 $code)" "the domain reaches the agent (HTTP $code)"
@@ -520,11 +535,28 @@ else
 fi
 
 # ---- reverse proxy ----------------------------------------------------------
+# Existing configs guard themselves with host lists in two flavours:
+#   @not_known  not host a b c      -> everything else gets 403
+#   @known_hosts    host a b c      -> only these are allowed through
+# Both must learn about the new domain, otherwise the ACME challenge (plain
+# HTTP on port 80) is answered with 403 and no certificate is ever issued.
 allow_in_whitelists() {
-  grep -q "not host" "$1" 2>/dev/null || return 0
-  if grep "not host" "$1" | grep -q "$DOMAIN"; then return 0; fi
-  sed -i "/not host/ s/\$/ $DOMAIN/" "$1"
-  say "已把 $DOMAIN 加入原有配置的域名白名单" "added $DOMAIN to the existing host whitelist"
+  touched=0
+  if grep -q "not host" "$1" 2>/dev/null; then
+    if ! grep "not host" "$1" | grep -q "$DOMAIN"; then
+      sed -i "/not host/ s/\$/ $DOMAIN/" "$1"
+      touched=1
+    fi
+  fi
+  if grep -qE '^[[:space:]]*@[A-Za-z_]+[[:space:]]+host[[:space:]]' "$1" 2>/dev/null; then
+    if ! grep -E '^[[:space:]]*@[A-Za-z_]+[[:space:]]+host[[:space:]]' "$1" | grep -q "$DOMAIN"; then
+      sed -i "/^[[:space:]]*@[A-Za-z_]*[[:space:]]*host[[:space:]]/ s/\$/ $DOMAIN/" "$1"
+      touched=1
+    fi
+  fi
+  if [ "$touched" = 1 ]; then
+    say "已把 $DOMAIN 加入原有配置的域名白名单" "added $DOMAIN to the existing host whitelists"
+  fi
 }
 
 # A config with auto_https off (or explicit certificate paths) will never issue
@@ -539,9 +571,23 @@ tls_line() {
     existing=$(grep -oE 'tls[[:space:]]+/[^ ]+[[:space:]]+/[^ ]+' "$1" 2>/dev/null | head -1)
     if [ -n "$existing" ]; then
       printf '  %s' "$existing"
-    else
-      AUTO_HTTPS_OFF=1
+      return 0
     fi
+    AUTO_HTTPS_OFF=1
+    return 0
+  fi
+  # A catch-all "tls internal" makes Caddy hand out its own untrusted
+  # certificate for any name without an explicit policy — the TLS handshake
+  # then succeeds but no client trusts it. Pin our site to a public issuer.
+  if grep -qE '^[[:space:]]*tls[[:space:]]+internal' "$1" 2>/dev/null; then
+    account=$(grep -oE '^[[:space:]]*email[[:space:]]+\S+' "$1" 2>/dev/null | head -1 | awk '{print $2}')
+    if [ -n "$account" ]; then
+      printf '  tls %s' "$account"
+    else
+      printf '  tls {\n    issuer acme\n  }'
+    fi
+    say "检测到配置里有 tls internal(自签兜底),已为本域名单独指定权威证书签发" \
+        "found a catch-all 'tls internal'; pinning this domain to a public certificate issuer"
   fi
 }
 

@@ -11,6 +11,7 @@
 #   ... --domain agent.example.com   hide the agent behind a real domain on 443
 #   ... --status                     health report for this machine
 #   ... --uninstall                  remove everything this script installed
+#   ... --update                     update an existing install without a prompt
 #
 #   --proxy caddy|nginx|auto   reverse proxy to use (default: auto-detect)
 #   --cert /p --key /p         use an existing certificate instead of ACME
@@ -22,7 +23,9 @@ set -eu
 
 REPO="maow318/astervps"
 TOKEN=""
+SOURCE_TOKEN_FILE=""
 LISTEN=":9977"
+LISTEN_EXPLICIT=0
 STATE_DIR="/var/lib/aster-agent"
 GHPROXY=""
 VERSION="latest"
@@ -34,6 +37,7 @@ KEY_PATH=""
 FORCE_IP=0
 UNINSTALL=0
 STATUS=0
+ACTION=""
 LANG_CHOICE=""
 
 BIN=/usr/local/bin/aster-agent
@@ -49,7 +53,8 @@ DARWIN_LOG=/var/log/aster-agent.log
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --token) TOKEN="$2"; shift 2 ;;
-    --listen) LISTEN="$2"; shift 2 ;;
+    --token-file) SOURCE_TOKEN_FILE="$2"; shift 2 ;;
+    --listen) LISTEN="$2"; LISTEN_EXPLICIT=1; shift 2 ;;
     --state-dir) STATE_DIR="$2"; shift 2 ;;
     --ghproxy) GHPROXY="$2"; shift 2 ;;
     --version) VERSION="$2"; shift 2 ;;
@@ -61,7 +66,8 @@ while [ "$#" -gt 0 ]; do
     --key) KEY_PATH="$2"; shift 2 ;;
     --lang) LANG_CHOICE="$2"; shift 2 ;;
     --force-ip) FORCE_IP=1; shift ;;
-    --uninstall) UNINSTALL=1; shift ;;
+    --update) ACTION=update; shift ;;
+    --delete | --uninstall) ACTION=delete; UNINSTALL=1; shift ;;
     --status | --doctor) STATUS=1; shift ;;
     *) shift ;;
   esac
@@ -127,12 +133,80 @@ discover_docker() {
 
 docker_caddyfile() {
   docker inspect "$1" --format '{{range .Mounts}}{{.Destination}} {{.Source}}{{println}}{{end}}' 2>/dev/null \
-    | awk '$1 == "/etc/caddy/Caddyfile" {print $2; exit}'
+    | awk '$1 == "/etc/caddy/Caddyfile" {file=$2}
+           $1 == "/etc/caddy" {dir=$2}
+           END {if (file) print file; else if (dir) print dir "/Caddyfile"}'
 }
 
 docker_gateway() {
   docker inspect "$1" --format '{{range .NetworkSettings.Networks}}{{.Gateway}}{{println}}{{end}}' 2>/dev/null \
     | awk 'NF {print; exit}'
+}
+
+# The container view is the source of truth. Some management panels create
+# several overlapping mounts or replace the host file after the container was
+# started; in that case Docker's reported Source path can be stale even after a
+# restart. Snapshot and publish through the path Caddy is actually reading.
+docker_caddy_snapshot() { # <container> <destination>
+  docker cp "$1:/etc/caddy/Caddyfile" "$2" >/dev/null 2>&1
+}
+
+docker_caddy_publish() { # <container> <candidate> [reported-host-path]
+  DCP_CONTAINER=$1
+  DCP_CANDIDATE=$2
+  DCP_HOST_PATH=${3:-}
+  DCP_CONTAINER_TMP="/tmp/aster-Caddyfile.$$"
+  DCP_ROUNDTRIP=$(mktemp)
+
+  docker cp "$DCP_CANDIDATE" "$DCP_CONTAINER:$DCP_CONTAINER_TMP" >/dev/null 2>&1 \
+    || fail "无法把候选配置送入 Caddy 容器" "could not copy the candidate config into Caddy"
+  if ! docker exec "$DCP_CONTAINER" caddy validate --config "$DCP_CONTAINER_TMP" \
+      --adapter caddyfile >/dev/null 2>&1; then
+    docker exec "$DCP_CONTAINER" rm -f "$DCP_CONTAINER_TMP" >/dev/null 2>&1 || true
+    rm -f "$DCP_ROUNDTRIP"
+    fail "新的 Caddy 配置校验失败,原配置未改动" \
+         "the new Caddy config is invalid; the active config was not changed"
+  fi
+
+  DCP_APPLIED=0
+  if docker exec "$DCP_CONTAINER" sh -c \
+      "cat '$DCP_CONTAINER_TMP' > /etc/caddy/Caddyfile" >/dev/null 2>&1; then
+    DCP_APPLIED=1
+  elif [ -n "$DCP_HOST_PATH" ] && [ -f "$DCP_HOST_PATH" ]; then
+    # Read-only container mounts cannot be changed from inside. Preserve the
+    # bind-mounted inode on the host and restart once so Docker reopens it.
+    cat "$DCP_CANDIDATE" > "$DCP_HOST_PATH" \
+      || fail "无法写入 Caddy 的宿主机配置:$DCP_HOST_PATH" \
+              "could not write Caddy's host config: $DCP_HOST_PATH"
+    docker restart "$DCP_CONTAINER" >/dev/null 2>&1 \
+      || fail "无法重启 Caddy 容器" "could not restart the Caddy container"
+    sleep 3
+    DCP_APPLIED=1
+  fi
+
+  docker exec "$DCP_CONTAINER" rm -f "$DCP_CONTAINER_TMP" >/dev/null 2>&1 || true
+  if [ "$DCP_APPLIED" != 1 ]; then
+    rm -f "$DCP_ROUNDTRIP"
+    fail "Caddy 配置挂载为只读且找不到可写的宿主机文件" \
+         "Caddy's config is read-only and no writable host file was found"
+  fi
+
+  # Keep the panel-managed source in sync when Docker reports one. The active
+  # file has already been updated above, so this is persistence, not activation.
+  if [ -n "$DCP_HOST_PATH" ] && [ -f "$DCP_HOST_PATH" ] && [ -w "$DCP_HOST_PATH" ]; then
+    cat "$DCP_CANDIDATE" > "$DCP_HOST_PATH"
+  fi
+  docker exec "$DCP_CONTAINER" caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
+    || docker restart "$DCP_CONTAINER" >/dev/null 2>&1 \
+    || fail "无法重载 Caddy 容器" "could not reload the Caddy container"
+
+  if ! docker_caddy_snapshot "$DCP_CONTAINER" "$DCP_ROUNDTRIP" \
+      || ! cmp -s "$DCP_CANDIDATE" "$DCP_ROUNDTRIP"; then
+    rm -f "$DCP_ROUNDTRIP"
+    fail "Caddy 容器仍未使用新配置;请检查是否有面板任务在自动覆盖 Caddyfile" \
+         "Caddy still is not using the new config; check whether a panel keeps overwriting Caddyfile"
+  fi
+  rm -f "$DCP_ROUNDTRIP"
 }
 
 public_ip() { curl -4fsS --max-time 8 https://api.ipify.org 2>/dev/null || true; }
@@ -161,9 +235,21 @@ clean_proxy_blocks() {
   discover_docker
   if [ -n "$DOCKER_CADDY" ]; then
     mounted=$(docker_caddyfile "$DOCKER_CADDY")
-    if [ -n "${mounted:-}" ] && grep -q '# aster-agent begin' "$mounted" 2>/dev/null; then
+    CLEAN_CADDY_TMP=$(mktemp)
+    CLEANED_ACTIVE_CADDY=0
+    if docker_caddy_snapshot "$DOCKER_CADDY" "$CLEAN_CADDY_TMP" \
+        && grep -q '# aster-agent begin' "$CLEAN_CADDY_TMP" 2>/dev/null; then
+      edit_inplace "$CLEAN_CADDY_TMP" '/# aster-agent begin/,/# aster-agent end/d'
+      docker_caddy_publish "$DOCKER_CADDY" "$CLEAN_CADDY_TMP" "${mounted:-}"
+      CLEANED_ACTIVE_CADDY=1
+      cleaned=1
+    fi
+    rm -f "$CLEAN_CADDY_TMP"
+    # Also remove a stale panel-side copy so it cannot restore the deleted site
+    # during a later container recreation.
+    if [ "$CLEANED_ACTIVE_CADDY" = 0 ] && [ -n "${mounted:-}" ] \
+        && grep -q '# aster-agent begin' "$mounted" 2>/dev/null; then
       edit_inplace "$mounted" '/# aster-agent begin/,/# aster-agent end/d'
-      docker exec "$DOCKER_CADDY" caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 || true
       cleaned=1
     fi
   fi
@@ -197,6 +283,73 @@ stop_previous() {
     rm -f "/etc/init.d/$SERVICE"
   fi
 }
+
+has_existing_install() {
+  [ -x "$BIN" ] || [ -f "$STATE_FILE" ] || [ -f "$TOKEN_FILE" ] \
+    || [ -f "/etc/systemd/system/$SERVICE.service" ] \
+    || [ -f "/etc/init.d/$SERVICE" ] || [ -f "$PLIST" ]
+}
+
+choose_existing_action() {
+  has_existing_install || return 0
+  [ "$STATUS" = 0 ] || return 0
+  [ -z "$ACTION" ] || return 0
+
+  # stdin contains the downloaded script, so prompts must use the controlling
+  # terminal explicitly. Opening it once also verifies both read and write.
+  if ! exec 3<> /dev/tty 2>/dev/null; then
+    fail "检测到本机已经安装 Aster。无交互终端时请明确添加 --update 或 --uninstall" \
+         "Aster is already installed. Without a TTY, pass --update or --uninstall explicitly"
+  fi
+
+  if [ "$LANG_CHOICE" = "zh" ]; then
+    printf '\n检测到这台机器已经安装 Aster Agent。\n' >&3
+    if [ "$SAVED_MODE" = "domain" ]; then
+      printf '当前配置:域名模式 %s\n' "$SAVED_DOMAIN" >&3
+    elif [ -n "$SAVED_LISTEN" ]; then
+      printf '当前配置:监听 %s\n' "$SAVED_LISTEN" >&3
+    fi
+    printf '  [1] 删除这台机器上的 Aster Agent\n' >&3
+    printf '  [2] 在现有配置基础上更新（保留域名、历史数据和未重新指定的设置）\n' >&3
+  else
+    printf '\nAster Agent is already installed on this machine.\n' >&3
+    if [ "$SAVED_MODE" = "domain" ]; then
+      printf 'Current configuration: domain mode %s\n' "$SAVED_DOMAIN" >&3
+    elif [ -n "$SAVED_LISTEN" ]; then
+      printf 'Current configuration: listening on %s\n' "$SAVED_LISTEN" >&3
+    fi
+    printf '  [1] Delete Aster Agent from this machine\n' >&3
+    printf '  [2] Update in place (keep domain, history, and unspecified settings)\n' >&3
+  fi
+
+  while :; do
+    if [ "$LANG_CHOICE" = "zh" ]; then
+      printf '请选择 [1/2]:' >&3
+    else
+      printf 'Choose [1/2]: ' >&3
+    fi
+    if ! IFS= read -r EXISTING_CHOICE <&3; then
+      fail "无法读取选择,未执行任何操作" "could not read a choice; nothing was changed"
+    fi
+    case "$EXISTING_CHOICE" in
+      1) exec 3>&-; ACTION=delete; UNINSTALL=1; return 0 ;;
+      2) exec 3>&-; ACTION=update; return 0 ;;
+      *)
+        if [ "$LANG_CHOICE" = "zh" ]; then
+          printf '请输入 1 或 2。\n' >&3
+        else
+          printf 'Enter 1 or 2.\n' >&3
+        fi ;;
+    esac
+  done
+}
+
+choose_existing_action
+if [ "$ACTION" = "update" ] && ! has_existing_install; then ACTION=install; fi
+if [ "$ACTION" = "update" ] && [ "$LISTEN_EXPLICIT" = 0 ] && [ -n "$SAVED_LISTEN" ]; then
+  LISTEN="$SAVED_LISTEN"
+  AGENT_PORT="${LISTEN##*:}"
+fi
 
 if [ "$UNINSTALL" = 1 ]; then
   stop_previous
@@ -356,8 +509,17 @@ if [ "$STATUS" = 1 ]; then
 fi
 
 # ---- install ----------------------------------------------------------------
+if [ -n "$SOURCE_TOKEN_FILE" ]; then
+  [ -r "$SOURCE_TOKEN_FILE" ] \
+    || fail "无法读取 token 文件:$SOURCE_TOKEN_FILE" "cannot read token file: $SOURCE_TOKEN_FILE"
+  TOKEN=$(tr -d '\r\n' < "$SOURCE_TOKEN_FILE")
+fi
+if [ -z "$TOKEN" ] && [ "$ACTION" = "update" ] && [ -r "$TOKEN_FILE" ]; then
+  TOKEN=$(tr -d '\r\n' < "$TOKEN_FILE")
+  info "未指定新 token,继续使用现有 token" "no new token supplied; keeping the existing token"
+fi
 [ -n "$TOKEN" ] || fail "缺少 --token(请在 Aster 的添加机器窗口里复制完整命令)" \
-                        "--token is required (copy the whole command from Aster)"
+                        "--token or --token-file is required"
 command -v curl >/dev/null 2>&1 || fail "系统缺少 curl,请先安装 curl" "curl is required"
 
 case "$(uname -s)" in
@@ -435,8 +597,13 @@ if [ -n "$DOMAIN" ]; then
   fi
 fi
 
-stop_previous
-if [ "$PLATFORM" = "linux" ]; then clean_proxy_blocks; fi
+if [ "$ACTION" = "update" ]; then
+  say "正在原地更新,现有服务会保持运行到新版本下载完成。" \
+      "updating in place; the current service stays online until the new version is ready."
+else
+  stop_previous
+  if [ "$PLATFORM" = "linux" ]; then clean_proxy_blocks; fi
+fi
 
 ASSET="aster-agent-$PLATFORM-$ARCH"
 if [ "$VERSION" = "latest" ]; then
@@ -478,6 +645,9 @@ umask "$umask_previous"
 chmod 600 "$TOKEN_FILE"
 
 if [ "$PLATFORM" = "darwin" ]; then
+  if [ "$ACTION" = "update" ] && [ -f "$PLIST" ]; then
+    launchctl bootout system "$PLIST" 2>/dev/null || true
+  fi
   cat > "$PLIST" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -523,7 +693,12 @@ RestrictSUIDSGID=yes
 WantedBy=multi-user.target
 EOF
   systemctl daemon-reload
-  systemctl enable --now "$SERVICE" >/dev/null 2>&1
+  if [ "$ACTION" = "update" ]; then
+    systemctl enable "$SERVICE" >/dev/null 2>&1
+    systemctl restart "$SERVICE"
+  else
+    systemctl enable --now "$SERVICE" >/dev/null 2>&1
+  fi
   sleep 2
   FINGERPRINT=$(journalctl -u "$SERVICE" --no-pager 2>/dev/null | grep -o 'fingerprint: [0-9a-f]*' | tail -1 | cut -d' ' -f2 || true)
 elif command -v rc-service >/dev/null 2>&1; then
@@ -540,7 +715,11 @@ depend() { need net; }
 EOF
   chmod +x "/etc/init.d/$SERVICE"
   rc-update add "$SERVICE" default
-  rc-service "$SERVICE" start
+  if [ "$ACTION" = "update" ]; then
+    rc-service "$SERVICE" restart
+  else
+    rc-service "$SERVICE" start
+  fi
   sleep 2
   FINGERPRINT=$(grep -o 'fingerprint: [0-9a-f]*' "/var/log/$SERVICE.log" 2>/dev/null | tail -1 | cut -d' ' -f2 || true)
 else
@@ -691,28 +870,22 @@ if [ -n "$DOMAIN" ]; then
         || fail "Caddy 启动失败,请运行 journalctl -u caddy 查看原因" "caddy failed to start" ;;
     caddy-docker)
       CADDYFILE_HOST=$(docker_caddyfile "$DOCKER_CADDY")
-      [ -n "$CADDYFILE_HOST" ] \
-        || fail "找到了 Caddy 容器但没找到它的配置文件挂载,需要手动配置反向代理" \
-                "found the Caddy container but not its Caddyfile mount"
-      say "正在更新 $CADDYFILE_HOST" "updating $CADDYFILE_HOST"
-      write_caddy_block "$CADDYFILE_HOST" "$GATEWAY:$AGENT_PORT"
-      # An earlier tool may already have detached the bind mount (see
-      # edit_inplace): confirm the container really sees the new config and
-      # restart it — which re-resolves the mount — when it does not.
-      if ! docker exec "$DOCKER_CADDY" grep -q "$DOMAIN" /etc/caddy/Caddyfile 2>/dev/null; then
-        say "容器还看不到新配置(挂载已失效),正在重启 Caddy 容器修复" \
-            "the container cannot see the new config (stale bind mount); restarting it"
-        docker restart "$DOCKER_CADDY" >/dev/null 2>&1 \
-          || fail "无法重启 Caddy 容器" "could not restart the Caddy container"
-        sleep 4
-        docker exec "$DOCKER_CADDY" grep -q "$DOMAIN" /etc/caddy/Caddyfile 2>/dev/null \
-          || fail "容器内的配置文件与宿主机文件不一致,请检查 $DOCKER_CADDY 的挂载设置" \
-                  "the container's config still differs from the host file; check the mounts of $DOCKER_CADDY"
+      CADDY_WORK=$(mktemp)
+      if ! docker_caddy_snapshot "$DOCKER_CADDY" "$CADDY_WORK"; then
+        rm -f "$CADDY_WORK"
+        fail "无法读取 Caddy 容器正在使用的配置文件" \
+             "could not read the config currently used by the Caddy container"
+      fi
+      if [ -n "$CADDYFILE_HOST" ]; then
+        say "正在原位更新 Caddy 当前配置(持久化到 $CADDYFILE_HOST)" \
+            "updating Caddy's active config in place (persisting to $CADDYFILE_HOST)"
       else
-        docker exec "$DOCKER_CADDY" caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
-          || docker restart "$DOCKER_CADDY" >/dev/null 2>&1 \
-          || fail "无法重载 Caddy 容器" "could not reload the Caddy container"
-      fi ;;
+        say "正在原位更新 Caddy 容器当前使用的配置" \
+            "updating the config currently used by the Caddy container"
+      fi
+      write_caddy_block "$CADDY_WORK" "$GATEWAY:$AGENT_PORT"
+      docker_caddy_publish "$DOCKER_CADDY" "$CADDY_WORK" "${CADDYFILE_HOST:-}"
+      rm -f "$CADDY_WORK" ;;
     nginx-host) setup_nginx_host ;;
     nginx-docker)
       say "" ""
@@ -761,7 +934,13 @@ line ""
 line "=========================================="
 if [ -n "$DOMAIN" ]; then
   if [ "$VERIFIED" = 1 ]; then
-    say "部署成功!请在 Aster 里用下面这个地址添加机器:" "Ready. Add this machine in Aster with:"
+    if [ "$ACTION" = "update" ]; then
+      say "更新成功!Aster 仍通过下面的地址连接:" \
+          "Update complete. Aster still connects through:"
+    else
+      say "部署成功!请在 Aster 里用下面这个地址添加机器:" \
+          "Ready. Add this machine in Aster with:"
+    fi
     line "   https://$DOMAIN"
     say "(不需要比对指纹,证书会自动验证)" "(no fingerprint step; the certificate verifies automatically)"
   elif [ "$DOMAIN_MANUAL" = 1 ]; then
@@ -774,7 +953,11 @@ if [ -n "$DOMAIN" ]; then
     run_doctor
   fi
 else
-  say "安装完成,agent 正在 $LISTEN 上运行。" "Installed; the agent is running on $LISTEN."
+  if [ "$ACTION" = "update" ]; then
+    say "更新完成,agent 正在 $LISTEN 上运行。" "Updated; the agent is running on $LISTEN."
+  else
+    say "安装完成,agent 正在 $LISTEN 上运行。" "Installed; the agent is running on $LISTEN."
+  fi
   if [ -n "${FINGERPRINT:-}" ]; then
     say "请在 Aster 里核对这个指纹:" "Compare this fingerprint in Aster:"
     line "   $FINGERPRINT"

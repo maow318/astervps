@@ -147,66 +147,106 @@ docker_gateway() {
 # several overlapping mounts or replace the host file after the container was
 # started; in that case Docker's reported Source path can be stale even after a
 # restart. Snapshot and publish through the path Caddy is actually reading.
+run_with_timeout() { # <seconds> <command> [args...]
+  RWT_SECONDS=$1
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$RWT_SECONDS" "$@"
+  else
+    "$@"
+  fi
+}
+
 docker_caddy_snapshot() { # <container> <destination>
-  docker cp "$1:/etc/caddy/Caddyfile" "$2" >/dev/null 2>&1
+  run_with_timeout 15 docker cp "$1:/etc/caddy/Caddyfile" "$2" >/dev/null 2>&1
+}
+
+docker_caddy_restore() { # <container> <active-backup> [host-path] [host-backup]
+  DCR_CONTAINER=$1
+  DCR_ACTIVE_BACKUP=$2
+  DCR_HOST_PATH=${3:-}
+  DCR_HOST_BACKUP=${4:-}
+  run_with_timeout 15 docker exec -i "$DCR_CONTAINER" sh -c \
+    'cat > /etc/caddy/Caddyfile' < "$DCR_ACTIVE_BACKUP" >/dev/null 2>&1 || true
+  if [ -n "$DCR_HOST_PATH" ] && [ -n "$DCR_HOST_BACKUP" ] \
+      && [ -f "$DCR_HOST_BACKUP" ]; then
+    cat "$DCR_HOST_BACKUP" > "$DCR_HOST_PATH" 2>/dev/null || true
+  fi
+  run_with_timeout 20 docker exec "$DCR_CONTAINER" caddy reload \
+    --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 || true
 }
 
 docker_caddy_publish() { # <container> <candidate> [reported-host-path]
   DCP_CONTAINER=$1
   DCP_CANDIDATE=$2
   DCP_HOST_PATH=${3:-}
-  DCP_CONTAINER_TMP="/tmp/aster-Caddyfile.$$"
+  DCP_ACTIVE_BACKUP=$(mktemp)
+  DCP_HOST_BACKUP=$(mktemp)
   DCP_ROUNDTRIP=$(mktemp)
 
-  docker cp "$DCP_CANDIDATE" "$DCP_CONTAINER:$DCP_CONTAINER_TMP" >/dev/null 2>&1 \
-    || fail "无法把候选配置送入 Caddy 容器" "could not copy the candidate config into Caddy"
-  if ! docker exec "$DCP_CONTAINER" caddy validate --config "$DCP_CONTAINER_TMP" \
-      --adapter caddyfile >/dev/null 2>&1; then
-    docker exec "$DCP_CONTAINER" rm -f "$DCP_CONTAINER_TMP" >/dev/null 2>&1 || true
-    rm -f "$DCP_ROUNDTRIP"
-    fail "新的 Caddy 配置校验失败,原配置未改动" \
-         "the new Caddy config is invalid; the active config was not changed"
+  if ! docker_caddy_snapshot "$DCP_CONTAINER" "$DCP_ACTIVE_BACKUP"; then
+    bad "读取 Caddy 当前配置超时或失败,没有改动任何文件" \
+        "timed out reading Caddy's active config; nothing was changed"
+    rm -f "$DCP_ACTIVE_BACKUP" "$DCP_HOST_BACKUP" "$DCP_ROUNDTRIP"
+    return 1
+  fi
+  if [ -n "$DCP_HOST_PATH" ] && [ -f "$DCP_HOST_PATH" ]; then
+    if ! cp "$DCP_HOST_PATH" "$DCP_HOST_BACKUP"; then
+      bad "无法备份 Caddy 的持久化配置,没有改动任何文件" \
+          "could not back up Caddy's persistent config; nothing was changed"
+      rm -f "$DCP_ACTIVE_BACKUP" "$DCP_HOST_BACKUP" "$DCP_ROUNDTRIP"
+      return 1
+    fi
+  else
+    : > "$DCP_HOST_BACKUP"
   fi
 
-  DCP_APPLIED=0
-  if docker exec "$DCP_CONTAINER" sh -c \
-      "cat '$DCP_CONTAINER_TMP' > /etc/caddy/Caddyfile" >/dev/null 2>&1; then
-    DCP_APPLIED=1
-  elif [ -n "$DCP_HOST_PATH" ] && [ -f "$DCP_HOST_PATH" ]; then
-    # Read-only container mounts cannot be changed from inside. Preserve the
-    # bind-mounted inode on the host and restart once so Docker reopens it.
-    cat "$DCP_CANDIDATE" > "$DCP_HOST_PATH" \
-      || fail "无法写入 Caddy 的宿主机配置:$DCP_HOST_PATH" \
-              "could not write Caddy's host config: $DCP_HOST_PATH"
-    docker restart "$DCP_CONTAINER" >/dev/null 2>&1 \
-      || fail "无法重启 Caddy 容器" "could not restart the Caddy container"
-    sleep 3
-    DCP_APPLIED=1
+  info "正在写入 Caddy 当前使用的配置" "writing Caddy's active config"
+  if ! run_with_timeout 15 docker exec -i "$DCP_CONTAINER" sh -c \
+      'cat > /etc/caddy/Caddyfile' < "$DCP_CANDIDATE"; then
+    bad "写入 Caddy 容器超时或失败,原配置未改动" \
+        "timed out writing Caddy's config; the original config is unchanged"
+    rm -f "$DCP_ACTIVE_BACKUP" "$DCP_HOST_BACKUP" "$DCP_ROUNDTRIP"
+    return 1
   fi
 
-  docker exec "$DCP_CONTAINER" rm -f "$DCP_CONTAINER_TMP" >/dev/null 2>&1 || true
-  if [ "$DCP_APPLIED" != 1 ]; then
-    rm -f "$DCP_ROUNDTRIP"
-    fail "Caddy 配置挂载为只读且找不到可写的宿主机文件" \
-         "Caddy's config is read-only and no writable host file was found"
+  info "正在重载 Caddy(最多等待 20 秒)" "reloading Caddy (20 second timeout)"
+  if ! run_with_timeout 20 docker exec "$DCP_CONTAINER" caddy reload \
+      --config /etc/caddy/Caddyfile --adapter caddyfile; then
+    bad "Caddy 拒绝了新配置,正在自动恢复原配置" \
+        "Caddy rejected the new config; restoring the original automatically"
+    docker_caddy_restore "$DCP_CONTAINER" "$DCP_ACTIVE_BACKUP" \
+      "$DCP_HOST_PATH" "$DCP_HOST_BACKUP"
+    rm -f "$DCP_ACTIVE_BACKUP" "$DCP_HOST_BACKUP" "$DCP_ROUNDTRIP"
+    return 1
   fi
 
-  # Keep the panel-managed source in sync when Docker reports one. The active
-  # file has already been updated above, so this is persistence, not activation.
-  if [ -n "$DCP_HOST_PATH" ] && [ -f "$DCP_HOST_PATH" ] && [ -w "$DCP_HOST_PATH" ]; then
-    cat "$DCP_CANDIDATE" > "$DCP_HOST_PATH"
+  # Keep the panel-managed source in sync only after Caddy accepted the active
+  # file. If persistence fails, restore both views instead of leaving a split.
+  if [ -n "$DCP_HOST_PATH" ] && [ -f "$DCP_HOST_PATH" ]; then
+    if ! cat "$DCP_CANDIDATE" > "$DCP_HOST_PATH"; then
+      bad "无法持久化 Caddy 配置,正在自动恢复原配置" \
+          "could not persist Caddy's config; restoring the original automatically"
+      docker_caddy_restore "$DCP_CONTAINER" "$DCP_ACTIVE_BACKUP" \
+        "$DCP_HOST_PATH" "$DCP_HOST_BACKUP"
+      rm -f "$DCP_ACTIVE_BACKUP" "$DCP_HOST_BACKUP" "$DCP_ROUNDTRIP"
+      return 1
+    fi
   fi
-  docker exec "$DCP_CONTAINER" caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
-    || docker restart "$DCP_CONTAINER" >/dev/null 2>&1 \
-    || fail "无法重载 Caddy 容器" "could not reload the Caddy container"
 
   if ! docker_caddy_snapshot "$DCP_CONTAINER" "$DCP_ROUNDTRIP" \
       || ! cmp -s "$DCP_CANDIDATE" "$DCP_ROUNDTRIP"; then
-    rm -f "$DCP_ROUNDTRIP"
-    fail "Caddy 容器仍未使用新配置;请检查是否有面板任务在自动覆盖 Caddyfile" \
-         "Caddy still is not using the new config; check whether a panel keeps overwriting Caddyfile"
+    bad "Caddy 配置回读不一致,正在自动恢复原配置" \
+        "Caddy's config did not match on read-back; restoring the original automatically"
+    docker_caddy_restore "$DCP_CONTAINER" "$DCP_ACTIVE_BACKUP" \
+      "$DCP_HOST_PATH" "$DCP_HOST_BACKUP"
+    rm -f "$DCP_ACTIVE_BACKUP" "$DCP_HOST_BACKUP" "$DCP_ROUNDTRIP"
+    return 1
   fi
-  rm -f "$DCP_ROUNDTRIP"
+  rm -f "$DCP_ACTIVE_BACKUP" "$DCP_HOST_BACKUP" "$DCP_ROUNDTRIP"
+  ok "Caddy 配置已更新并通过回读校验" \
+     "Caddy config updated and verified by read-back"
+  return 0
 }
 
 public_ip() { curl -4fsS --max-time 8 https://api.ipify.org 2>/dev/null || true; }
@@ -236,22 +276,39 @@ clean_proxy_blocks() {
   if [ -n "$DOCKER_CADDY" ]; then
     mounted=$(docker_caddyfile "$DOCKER_CADDY")
     CLEAN_CADDY_TMP=$(mktemp)
-    CLEANED_ACTIVE_CADDY=0
-    if docker_caddy_snapshot "$DOCKER_CADDY" "$CLEAN_CADDY_TMP" \
-        && grep -q '# aster-agent begin' "$CLEAN_CADDY_TMP" 2>/dev/null; then
-      edit_inplace "$CLEAN_CADDY_TMP" '/# aster-agent begin/,/# aster-agent end/d'
-      docker_caddy_publish "$DOCKER_CADDY" "$CLEAN_CADDY_TMP" "${mounted:-}"
-      CLEANED_ACTIVE_CADDY=1
-      cleaned=1
+    CLEAN_ACTIVE_TMP=$(mktemp)
+    CLEAN_HAD_MARKER=0
+    if docker_caddy_snapshot "$DOCKER_CADDY" "$CLEAN_ACTIVE_TMP"; then
+      if [ -n "${mounted:-}" ] && [ -r "$mounted" ]; then
+        cp "$mounted" "$CLEAN_CADDY_TMP"
+      else
+        cp "$CLEAN_ACTIVE_TMP" "$CLEAN_CADDY_TMP"
+      fi
+      if grep -q '# aster-agent begin' "$CLEAN_CADDY_TMP" 2>/dev/null; then
+        edit_inplace "$CLEAN_CADDY_TMP" '/# aster-agent begin/,/# aster-agent end/d'
+        CLEAN_HAD_MARKER=1
+      fi
+      if grep -q '# aster-agent begin' "$CLEAN_ACTIVE_TMP" 2>/dev/null; then
+        CLEAN_HAD_MARKER=1
+      fi
+
+      if ! cmp -s "$CLEAN_CADDY_TMP" "$CLEAN_ACTIVE_TMP"; then
+        if docker_caddy_publish "$DOCKER_CADDY" "$CLEAN_CADDY_TMP" "${mounted:-}"; then
+          [ "$CLEAN_HAD_MARKER" = 0 ] || cleaned=1
+        else
+          bad "Agent 已卸载,但 Caddy 中的旧反代块需要稍后手动清理" \
+              "the agent was removed, but its old Caddy block needs manual cleanup"
+        fi
+      elif [ -n "${mounted:-}" ] && [ -f "$mounted" ] \
+          && ! cmp -s "$CLEAN_CADDY_TMP" "$mounted"; then
+        cat "$CLEAN_CADDY_TMP" > "$mounted"
+        [ "$CLEAN_HAD_MARKER" = 0 ] || cleaned=1
+      fi
+    else
+      bad "Agent 已卸载,但无法读取 Caddy 配置进行反代清理" \
+          "the agent was removed, but Caddy's config could not be read for cleanup"
     fi
-    rm -f "$CLEAN_CADDY_TMP"
-    # Also remove a stale panel-side copy so it cannot restore the deleted site
-    # during a later container recreation.
-    if [ "$CLEANED_ACTIVE_CADDY" = 0 ] && [ -n "${mounted:-}" ] \
-        && grep -q '# aster-agent begin' "$mounted" 2>/dev/null; then
-      edit_inplace "$mounted" '/# aster-agent begin/,/# aster-agent end/d'
-      cleaned=1
-    fi
+    rm -f "$CLEAN_CADDY_TMP" "$CLEAN_ACTIVE_TMP"
   fi
   if [ -f "$NGINX_CONF" ]; then
     rm -f "$NGINX_CONF"
@@ -297,7 +354,9 @@ choose_existing_action() {
 
   # stdin contains the downloaded script, so prompts must use the controlling
   # terminal explicitly. Opening it once also verifies both read and write.
-  if ! exec 3<> /dev/tty 2>/dev/null; then
+  # Keep stderr redirection scoped to this probe; `exec ... 2>/dev/null` on its
+  # own would permanently hide every later error from the installer.
+  if ! { exec 3<> /dev/tty; } 2>/dev/null; then
     fail "检测到本机已经安装 Aster。无交互终端时请明确添加 --update 或 --uninstall" \
          "Aster is already installed. Without a TTY, pass --update or --uninstall explicitly"
   fi
@@ -353,9 +412,9 @@ fi
 
 if [ "$UNINSTALL" = 1 ]; then
   stop_previous
-  if [ "$(uname -s)" = "Linux" ]; then clean_proxy_blocks; fi
   rm -f "$BIN" "$TOKEN_FILE" "$STATE_FILE" /etc/cron.d/aster-certbot-renew
   rmdir "$CONF_DIR" 2>/dev/null || true
+  if [ "$(uname -s)" = "Linux" ]; then clean_proxy_blocks; fi
   say "已卸载 aster-agent(证书目录 $STATE_DIR 保留,可手动删除)" \
       "aster-agent uninstalled (TLS state dir $STATE_DIR kept)"
   exit 0
@@ -779,7 +838,7 @@ tls_line() {
       printf '  tls {\n    issuer acme\n  }'
     fi
     say "检测到配置里有 tls internal(自签兜底),已为本域名单独指定权威证书签发" \
-        "found a catch-all 'tls internal'; pinning this domain to a public certificate issuer"
+        "found a catch-all 'tls internal'; pinning this domain to a public certificate issuer" >&2
   fi
 }
 
@@ -871,20 +930,25 @@ if [ -n "$DOMAIN" ]; then
     caddy-docker)
       CADDYFILE_HOST=$(docker_caddyfile "$DOCKER_CADDY")
       CADDY_WORK=$(mktemp)
-      if ! docker_caddy_snapshot "$DOCKER_CADDY" "$CADDY_WORK"; then
-        rm -f "$CADDY_WORK"
-        fail "无法读取 Caddy 容器正在使用的配置文件" \
-             "could not read the config currently used by the Caddy container"
-      fi
-      if [ -n "$CADDYFILE_HOST" ]; then
+      if [ -n "$CADDYFILE_HOST" ] && [ -r "$CADDYFILE_HOST" ]; then
+        cp "$CADDYFILE_HOST" "$CADDY_WORK" \
+          || fail "无法读取 Caddy 的持久化配置:$CADDYFILE_HOST" \
+                  "could not read Caddy's persistent config: $CADDYFILE_HOST"
         say "正在原位更新 Caddy 当前配置(持久化到 $CADDYFILE_HOST)" \
             "updating Caddy's active config in place (persisting to $CADDYFILE_HOST)"
       else
+        if ! docker_caddy_snapshot "$DOCKER_CADDY" "$CADDY_WORK"; then
+          rm -f "$CADDY_WORK"
+          fail "读取 Caddy 容器当前配置超时或失败" \
+               "timed out reading the config currently used by Caddy"
+        fi
         say "正在原位更新 Caddy 容器当前使用的配置" \
             "updating the config currently used by the Caddy container"
       fi
       write_caddy_block "$CADDY_WORK" "$GATEWAY:$AGENT_PORT"
-      docker_caddy_publish "$DOCKER_CADDY" "$CADDY_WORK" "${CADDYFILE_HOST:-}"
+      docker_caddy_publish "$DOCKER_CADDY" "$CADDY_WORK" "${CADDYFILE_HOST:-}" \
+        || fail "Caddy 更新失败,原配置已自动恢复" \
+                "Caddy update failed; the original config was restored"
       rm -f "$CADDY_WORK" ;;
     nginx-host) setup_nginx_host ;;
     nginx-docker)
